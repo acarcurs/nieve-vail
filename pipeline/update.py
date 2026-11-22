@@ -43,7 +43,7 @@ class Step:
     def __exit__(self, et, ev, tb):
         ms = int((time.time() - self.t) * 1000)
         if et is None:
-            self.status[self.name] = dict(ok=True, ms=ms, at=now_utc_iso(), **getattr(self, "info", {}))
+            self.status[self.name] = dict(ok=True, ms=ms, at=now_utc_iso(), info=getattr(self, "info", None))
             print(f"[ok] {self.name} {ms} ms {getattr(self, 'info', '')}", flush=True)
         else:
             self.status[self.name] = dict(ok=False, ms=ms, at=now_utc_iso(), error=f"{et.__name__}: {str(ev)[:300]}")
@@ -95,12 +95,12 @@ def main():
         models, errs = openmeteo.fetch_models()
         if not models:
             raise RuntimeError(f"no models: {errs}")
-        s.info = dict(ok=sorted(models), failed=errs)
+        s.info = dict(got=sorted(models), failed=errs)
     with Step(status, "ensembles") as s:
         ens, errs = openmeteo.fetch_ensembles()
         if not ens:
             raise RuntimeError(f"no ensembles: {errs}")
-        s.info = dict(ok={k: v["members"] for k, v in ens.items()}, failed=errs)
+        s.info = dict(got={k: v["members"] for k, v in ens.items()}, failed=errs)
 
     with Step(status, "cumbre") as s:
         det = {}
