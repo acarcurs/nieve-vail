@@ -125,6 +125,7 @@ def build(today, det_sources, model_detail, ens, history_vail, log, trained=None
         ds = d.isoformat()
         cl = CLIM.get(ds[5:], [0.3, 4.3, 7.5])
         lead = max(1, k)
+        pw = (((trained or {}).get("blend") or {}).get(str(min(lead, 7))) or {}).get("p", 2)
         vals = []
         for name in order:
             ser = det_sources.get(name) or {}
@@ -137,7 +138,7 @@ def build(today, det_sources, model_detail, ens, history_vail, log, trained=None
             raw = float(ser[ds])
             b, mae = correction(name, lead, online, trained)
             corr = raw * b if raw >= 0.3 else raw
-            vals.append((name, raw, corr, 1.0 / (0.5 + mae)))
+            vals.append((name, raw, corr, (1.0 / max(mae, 0.05)) ** pw))
         E = pool_ensembles(ens, ds)
         extra = 0.0
         if E:
@@ -179,15 +180,15 @@ def build(today, det_sources, model_detail, ens, history_vail, log, trained=None
             lo, hi, qs = 0.0, cl[2], None
             kind = "clim"
         if qs is None:      # synthetic distribution: dry with prob 1-p, exponential amounts otherwise
-            pw = min(0.95, max(0.05, p))
-            m_wet = mean / pw
+            pwet = min(0.95, max(0.05, p))
+            m_wet = mean / pwet
             qs = []
             for pp in QS:
                 u = pp / 100.0
-                if u <= 1 - pw:
+                if u <= 1 - pwet:
                     qs.append(0.0)
                 else:
-                    u2 = min(0.97, (u - (1 - pw)) / pw)
+                    u2 = min(0.97, (u - (1 - pwet)) / pwet)
                     qs.append(-m_wet * math.log(1 - u2))
         qs = sorted(max(0.0, x) for x in qs)
         # confidence from the ensemble spread and lead time

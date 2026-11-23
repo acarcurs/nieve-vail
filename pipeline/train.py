@@ -45,7 +45,7 @@ def prev_runs(model_id, start, end):
     vars_ = ["precipitation", "temperature_2m"] + [f"{v}_previous_day{L}" for L in range(1, 8) for v in ("precipitation", "temperature_2m")]
     p = dict(latitude=LAT, longitude=LON, elevation=ELEV_M, timezone="America/Denver", models=model_id,
              hourly=",".join(vars_), start_date=start.isoformat(), end_date=end.isoformat())
-    j = get("https://previous-runs-api.open-meteo.com/v1/forecast", params=p, timeout=180, tries=2)
+    j = get("https://previous-runs-api.open-meteo.com/v1/forecast", params=p, timeout=180, tries=4)
     h = j["hourly"]
     def col(n):
         for k in (n, f"{n}_{model_id}"):
@@ -66,7 +66,9 @@ def prev_runs(model_id, start, end):
 
 def fetch_model(name, model_id, today):
     data, errs = {}, []
+    import time
     for s, e in seasons(today):
+        time.sleep(8)                      # stay under Open-Meteo's free per-minute budget
         try:
             r = prev_runs(model_id, s, e)
         except Exception as ex:  # noqa: BLE001
@@ -136,7 +138,7 @@ def main():
     print(f"  {len(h24)} days", flush=True)
     print("Archived model runs…", flush=True)
     models, errors = {}, {}
-    with cf.ThreadPoolExecutor(3) as ex:
+    with cf.ThreadPoolExecutor(1) as ex:
         for name, data, errs in ex.map(lambda m: fetch_model(m[0], m[1], today), MODELS):
             if data:
                 models[name] = data
@@ -173,27 +175,64 @@ def main():
                 ms[str(L)] = st
         if ms:
             out_models[name] = ms
-    # how a blend weighted like Cumbre does at each lead (in-sample)
+    # how a blend weighted like Cumbre does at each lead. Weights = (1/typical error)^p; p is chosen per lead.
+    # Corrections are fitted leaving each season out, so the scores are honest (out-of-sample).
+    def season_of(d):
+        y, m = int(d[:4]), int(d[5:7])
+        return y if m >= 7 else y - 1
+    seas = sorted({season_of(d) for d in target})
+    oos = {}                       # (name, L, season) -> b fitted on the other seasons
+    for name, data in models.items():
+        for L, dd in data.items():
+            for sy in seas:
+                pairs = [(dd[d]["snow"], target[d]) for d in dd if d in target and season_of(d) != sy]
+                st = stats_for(pairs)
+                if st and st["n"] >= 40:
+                    oos[(name, L, sy)] = st["b"]
     blend = {}
     for L in range(1, 8):
-        rows = []
-        for d in target:
+        rows = []                  # per day: list of (name, corrected_oos, mae)
+        for d in sorted(target):
             vals = []
             for name, data in models.items():
                 st = (out_models.get(name) or {}).get(str(L))
                 v = (data.get(L) or {}).get(d)
-                if st and v:
-                    c = v["snow"] * st["b"] if v["snow"] >= 0.3 else v["snow"]
-                    vals.append((c, 1.0 / (0.5 + st["mae"])))
+                b = oos.get((name, L, season_of(d)))
+                if st and v and b:
+                    c = v["snow"] * b if v["snow"] >= 0.3 else v["snow"]
+                    vals.append((name, c, st["mae"]))
             if len(vals) >= 2:
-                rows.append((sum(c * w for c, w in vals) / sum(w for _, w in vals), target[d]))
-        if rows:
-            mae = sum(abs(c - o) for c, o in rows) / len(rows)
-            singles = {n: s[str(L)]["mae"] for n, s in out_models.items() if str(L) in s}
-            best = min(singles, key=singles.get) if singles else None
-            ec = (out_models.get("ECMWF") or {}).get(str(L)) or {}
-            blend[str(L)] = dict(mae=round(mae, 3), n=len(rows), best=best, best_mae=singles.get(best),
-                                 ecmwf_raw_mae=ec.get("mae_raw"))
+                rows.append((d, vals, target[d]))
+        if not rows:
+            continue
+        def mae_for(pw, subset=None):
+            err, n = 0.0, 0
+            for d, vals, o in rows:
+                if subset and not subset(vals):
+                    continue
+                ws = [(1.0 / max(m, 0.05)) ** pw for _, _, m in vals]
+                c = sum(w * x for w, (_, x, _) in zip(ws, vals)) / sum(ws)
+                err += abs(c - o); n += 1
+            return err / n if n else None, n
+        best_p, best_mae = 2, None
+        for pw in (0, 1, 2, 3, 4, 6):
+            m_, _ = mae_for(pw)
+            if best_mae is None or m_ < best_mae - 1e-4:
+                best_p, best_mae = pw, m_
+        # fair comparison: each model vs the blend on the days that model has
+        singles = {}
+        for name in out_models:
+            sub = [(d, vals, o) for d, vals, o in rows if any(n == name for n, _, _ in vals)]
+            if len(sub) < 40:
+                continue
+            e_m = sum(abs(next(x for n, x, _ in vals if n == name) - o) for d, vals, o in sub) / len(sub)
+            e_b, _ = mae_for(best_p, subset=lambda vals, nm=name: any(n == nm for n, _, _ in vals))
+            singles[name] = dict(mae=round(e_m, 3), blend=round(e_b, 3), n=len(sub))
+        full = {n: v for n, v in singles.items() if v["n"] >= 0.8 * len(rows)}
+        best = min(full, key=lambda n: full[n]["mae"]) if full else None
+        blend[str(L)] = dict(p=best_p, mae=round(best_mae, 3), n=len(rows), singles=singles,
+                             best=best, best_mae=full[best]["mae"] if best else None,
+                             gain=round(1 - best_mae / full[best]["mae"], 3) if best else None)
     res = dict(trained_at=now_utc_iso(), window=[min(target), max(target)] if target else None, n_days=len(target),
                k_vail=round(k_vail, 3), n_vail_days=len(both),
                obs="SNOTEL Vail Mountain liquid x temperature-based snow ratio, scaled to Vail's 24 h report",
@@ -201,7 +240,9 @@ def main():
     save_json(os.path.join(DATA, "cumbre_model.json"), res, indent=1)
     for L in ("1", "3", "5", "7"):
         if L in blend:
-            print(f"lead {L}: blend MAE {blend[L]['mae']:.2f} in | best single {blend[L]['best']} {blend[L]['best_mae']}", flush=True)
+            b_ = blend[L]
+            print(f"lead {L}: p={b_['p']} blend MAE {b_['mae']:.2f} in (n={b_['n']}) | best full-period model {b_['best']} {b_['best_mae']} | gain {b_['gain']}", flush=True)
+            print("     ", {n: (v['mae'], v['blend'], v['n']) for n, v in b_['singles'].items()}, flush=True)
     for name, ms in out_models.items():
         s1 = ms.get("1") or {}
         print(f"  {name:6s} L1 b={s1.get('b')} mae={s1.get('mae')} r={s1.get('corr')} n={s1.get('n')}", flush=True)

@@ -37,7 +37,7 @@ def get(url, params=None, kind="json", timeout=60, tries=3, headers=None):
             r = SESSION.get(url, params=params, timeout=timeout, headers=headers or {})
             if r.status_code == 429 or r.status_code >= 500:
                 last = RuntimeError(f"HTTP {r.status_code} {url}")
-                time.sleep(2 + 4 * i)
+                time.sleep((20 if r.status_code == 429 else 2) * (i + 1))
                 continue
             r.raise_for_status()
             if kind == "json":
