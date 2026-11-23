@@ -158,19 +158,30 @@ def render(item, masks):
                 true="data/sat/latest_true.jpg", snow="data/sat/latest_snow.png", thumb="data/sat/latest_thumb.jpg")
 
 
-def run(prev, zones=None, backfill_from=None, max_new=12):
-    """prev: previous data/sat/index.json content. Returns new index dict."""
+def run(prev, zones=None, backfill_from=None, max_new=12, budget_s=600):
+    """prev: previous data/sat/index.json content. Returns new index dict.
+    The first time, last season's passes are analyzed too (for the comparison chart), within a time budget."""
+    import time
+    t0 = time.time()
     zones = zones or {"bb": BB_POLY, "front": FRONT_POLY}
     zones = {**{"aoi": [(BBOX[0], BBOX[1]), (BBOX[2], BBOX[1]), (BBOX[2], BBOX[3]), (BBOX[0], BBOX[3]), (BBOX[0], BBOX[1])]}, **zones}
     prev = prev or {}
     hist = {h["id"]: h for h in prev.get("passes", [])}
     today = dt.date.today()
+    season0 = dt.date(today.year if today.month >= 7 else today.year - 1, 10, 1)
+    last0 = dt.date(season0.year - 1, 10, 1)
+    if not backfill_from and not any(h["date"] < (last0 + dt.timedelta(days=120)).isoformat() for h in hist.values()):
+        backfill_from = last0.isoformat()          # never filled last season yet
     start = backfill_from or (today - dt.timedelta(days=40)).isoformat()
-    items = search(start, today.isoformat(), limit=400 if backfill_from else 60)
-    new = [it for it in items if it["id"] not in hist][: (400 if backfill_from else max_new)]
+    items = search(start, today.isoformat(), limit=500 if backfill_from else 60)
+    items = [it for it in items if int(it["properties"]["datetime"][5:7]) not in (6, 7, 8, 9)]   # no summer scenes
+    new = [it for it in items if it["id"] not in hist][: (500 if backfill_from else max_new)]
     errors = []
     latest_clear = None
     for it in new:          # newest first
+        if time.time() - t0 > budget_s:
+            errors.append(f"time budget reached; {len(new)} pending passes continue next run")
+            break
         try:
             res, masks = analyze(it, zones)
             hist[it["id"]] = res

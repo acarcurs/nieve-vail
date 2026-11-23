@@ -144,7 +144,7 @@
       el.querySelector("span").textContent = p.open + "/" + p.total;
       el.setAttribute("aria-label", p.name + ": " + p.open + " de " + p.total + " pistas abiertas");
       el.addEventListener("click", (e) => { e.stopPropagation(); opts.onArea && opts.onArea(p.name); });
-      markers.push(new maplibregl.Marker({ element: el, anchor: "center", opacity: "1", opacityWhenCovered: "0.85" }).setLngLat(c).addTo(map));
+      markers.push(new maplibregl.Marker({ element: el, anchor: "center", opacity: "1", opacityWhenCovered: "0.3" }).setLngLat(c).addTo(map));
     }
   }
 
