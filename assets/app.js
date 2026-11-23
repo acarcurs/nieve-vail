@@ -541,22 +541,23 @@ function renderLearning(C){
     const yrs = w.length ? (n2date(d2n(w[0])).getUTCFullYear() + "–" + String(n2date(d2n(w[1])).getUTCFullYear()).slice(2)) : "";
     $("#learn-intro").textContent = "Entrené a Cumbre con " + T.n_days + " días de nieve (" + yrs + "): comparé lo que cada modelo pronosticó de 1 a 7 días antes con lo que de verdad cayó en Vail, y aprendí cuánto corregir a cada uno y cuánto confiar en él.";
     const b1 = (T.blend || {})["1"] || {}, b5 = (T.blend || {})["5"] || {};
-    const best1 = b1.best;
+    const full1 = Object.entries(b1.singles || {}).filter(([, v]) => v.n >= 0.8 * (b1.n || 0)).sort((a, b) => a[1].mae - b[1].mae);
+    const best1 = full1.length ? full1[0][0] : b1.best;
+    const gain1 = full1.length ? 1 - full1[0][1].blend / full1[0][1].mae : b1.gain;
     $("#learn-kv").replaceChildren(
       el("div", null, el("b", null, b1.mae != null ? len(b1.mae, true) : "–"), el("span", null, "Error típico de Cumbre para mañana")),
-      el("div", null, el("b", null, b1.gain != null ? (b1.gain > 0 ? "−" + pct(b1.gain) : "≈") : "–"), el("span", null, "de error vs el mejor modelo solo" + (best1 ? " (" + best1 + ")" : ""))),
+      el("div", null, el("b", null, gain1 != null ? (gain1 > 0.005 ? "−" + pct(gain1) : "≈") : "–"), el("span", null, "de error vs el mejor modelo solo" + (best1 ? " (" + best1 + ")" : ""))),
       el("div", null, el("b", null, b5.mae != null ? len(b5.mae, true) : "–"), el("span", null, "Error típico a 5 días")));
     const rows = Object.entries(T.models).map(([nm, ms]) => {
       const s1 = ms["1"] || {}, s5 = ms["5"] || {};
-      const fair1 = ((b1.singles || {})[nm] || {}).mae, fair5 = ((b5.singles || {})[nm] || {}).mae;
-      return { nm, b: s1.b, e1: fair1 != null ? fair1 : s1.mae, e5: fair5 != null ? fair5 : s5.mae, pod: s1.pod, n: s1.n };
+      const f1 = (b1.singles || {})[nm] || {};
+      return { nm, b: s1.b, e1: f1.mae != null ? f1.mae : s1.mae, c1: f1.blend, pod: s1.pod, n: s1.n };
     }).sort((a, b) => (a.e1 ?? 9) - (b.e1 ?? 9));
     const t = $("#t-learn");
-    t.replaceChildren(el("tr", null, el("th", null, "Fuente"), el("th", { class: "n" }, "Corrección"), el("th", { class: "n" }, "Error 1 día"), el("th", { class: "n" }, "Error 5 días"), el("th", { class: "n" }, "Ve los días de nieve")),
-      el("tr", { class: "cum" }, el("td", null, el("b", null, "Cumbre")), el("td", { class: "n" }, "mezcla"), el("td", { class: "n" }, el("b", null, b1.mae != null ? len(b1.mae, true) : "–")), el("td", { class: "n" }, el("b", null, b5.mae != null ? len(b5.mae, true) : "–")), el("td", { class: "n" }, "")),
-      ...rows.map(r => el("tr", null, el("td", { title: SRC_DESC[r.nm] || "" }, SRC_LABEL[r.nm] || r.nm), el("td", { class: "n" }, r.b != null ? "×" + r.b.toFixed(2) : "–"), el("td", { class: "n" }, r.e1 != null ? len(r.e1, true) : "–"), el("td", { class: "n" }, r.e5 != null ? len(r.e5, true) : "–"), el("td", { class: "n" }, r.pod != null ? pct(r.pod) : "–"))),
+    t.replaceChildren(el("tr", null, el("th", null, "Fuente"), el("th", { class: "n" }, "Corrección"), el("th", { class: "n" }, "Su error"), el("th", { class: "n" }, "Cumbre"), el("th", { class: "n" }, "Ve la nieve")),
+      ...rows.map(r => el("tr", null, el("td", { title: SRC_DESC[r.nm] || "" }, SRC_LABEL[r.nm] || r.nm), el("td", { class: "n" }, r.b != null ? "×" + r.b.toFixed(2) : "–"), el("td", { class: "n" }, r.e1 != null ? len(r.e1, true) : "–"), el("td", { class: "n" }, r.c1 != null ? el("b", null, len(r.c1, true)) : "–"), el("td", { class: "n" }, r.pod != null ? pct(r.pod) : "–"))),
       el("tr", null, el("td", null, "Vail"), el("td", { class: "n" }, vOn.b != null ? "×" + vOn.b.toFixed(2) : "–"), el("td", { class: "n" }, vOn.mae != null ? len(vOn.mae, true) : "–"), el("td", { class: "n" }, "–"), el("td", { class: "n" }, "")));
-    $("#learn-note").textContent = "Corrección: por cuánto multiplica Cumbre la nieve que anuncia cada fuente (×1.30 = se queda corta 30%). Error típico: diferencia promedio por día, medida en temporadas que el ajuste no vio. «Ve los días de nieve»: de los días con 2.5 cm o más, cuántos anticipó. La fila Vail se aprende con cada reporte de 24 h. Reentrenado " + (T.trained_at ? fmtD(d2n(T.trained_at.slice(0, 10))) : "–") + ".";
+    $("#learn-note").textContent = "Pronósticos para el día siguiente. Corrección: por cuánto multiplica Cumbre la nieve que anuncia cada fuente (×1.30 = se queda corta 30%). Su error: diferencia promedio por día de esa fuente ya corregida; Cumbre: el error de la mezcla en esos mismos días (algunos modelos solo tienen archivo desde 2025). Se mide en temporadas que el ajuste no vio. Ve la nieve: de los días con 2.5 cm o más, cuántos anticipó. Reentrenado " + (T.trained_at ? fmtD(d2n(T.trained_at.slice(0, 10))) : "–") + ".";
   } else {
     $("#learn-intro").textContent = "Cumbre compara cada pronóstico con la nieve que Vail reporta después. Con " + (vOn.n || 0) + " pronósticos de Vail aprendió que cuando Vail anuncia nieve cae ≈ " + (vOn.b || 1).toFixed(1) + " veces lo anunciado.";
     $("#learn-kv").replaceChildren(); $("#t-learn").replaceChildren(); $("#learn-note").textContent = "";

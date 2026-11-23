@@ -232,7 +232,7 @@ def main():
         best = min(full, key=lambda n: full[n]["mae"]) if full else None
         blend[str(L)] = dict(p=best_p, mae=round(best_mae, 3), n=len(rows), singles=singles,
                              best=best, best_mae=full[best]["mae"] if best else None,
-                             gain=round(1 - best_mae / full[best]["mae"], 3) if best else None)
+                             gain=round(1 - full[best]["blend"] / full[best]["mae"], 3) if best else None)
     res = dict(trained_at=now_utc_iso(), window=[min(target), max(target)] if target else None, n_days=len(target),
                k_vail=round(k_vail, 3), n_vail_days=len(both),
                obs="SNOTEL Vail Mountain liquid x temperature-based snow ratio, scaled to Vail's 24 h report",
