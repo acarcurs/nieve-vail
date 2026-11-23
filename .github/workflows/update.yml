@@ -3,6 +3,9 @@ name: Actualizar datos
 on:
   schedule:
     - cron: "23 */3 * * *"        # cada 3 horas (UTC)
+  push:
+    branches: [main]
+    paths: ["pipeline/**", "!pipeline/train.py", ".github/workflows/update.yml"]
   workflow_dispatch:
     inputs:
       osm:

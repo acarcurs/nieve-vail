@@ -3,6 +3,9 @@ name: Entrenar Cumbre
 on:
   schedule:
     - cron: "41 9 * * 1"          # lunes
+  push:
+    branches: [main]
+    paths: ["pipeline/train.py", ".github/workflows/train.yml"]
   workflow_dispatch:
 
 permissions:

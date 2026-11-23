@@ -98,7 +98,7 @@ def _variants(name):
     return out
 
 
-def match(geo, terrain):
+def match(geo, terrain, lifts_today=None):
     """Returns status for each OSM feature id and polygons/centers per Vail area."""
     full, base, lifts_by_ref, lifts_by_name = {}, {}, {}, {}
     for a in (terrain or {}).get("areas", []):
@@ -148,7 +148,10 @@ def match(geo, terrain):
                     c = difflib.get_close_matches(n, list(lifts_by_name), n=1, cutoff=0.8)
                     l = lifts_by_name[c[0]] if c else None
             if l:
-                st_l[p["id"]] = [(l.get("s") or "").lower(), l["n"], l.get("area")]
+                stt = (l.get("s") or "").lower()
+                if lifts_today and l["n"] in lifts_today and stt != "open":
+                    stt = "open"            # ran earlier today (after hours the feed says Closed)
+                st_l[p["id"]] = [stt, l["n"], l.get("area")]
     # area hulls from matched runs
     pts = {}
     for f in geo.get("features", []):

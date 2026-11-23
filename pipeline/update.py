@@ -75,6 +75,11 @@ def main():
         if v.get("history_vail"):
             live["history_vail"] = v["history_vail"]
         s.info = dict(date=v.get("latest_date"))
+        # lifts show "Closed" after hours: remember which ones ran at any point today
+        lt = prev.get("lifts_today") or {}
+        names = set(lt.get("names", [])) if lt.get("date") == live.get("terrain_date") else set()
+        names |= {l["n"] for l in (live.get("terrain") or {}).get("lifts", []) if (l.get("s") or "").lower() == "open"}
+        live["lifts_today"] = dict(date=live.get("terrain_date"), names=sorted(names))
 
     with Step(status, "snotel") as s:
         rows = snotel.fetch("-30,0")
@@ -144,7 +149,7 @@ def main():
     zones = None
     if geo and live.get("terrain"):
         with Step(status, "map_status") as s:
-            ms = osm.match(geo, live["terrain"])
+            ms = osm.match(geo, live["terrain"], set((live.get("lifts_today") or {}).get("names", [])))
             ms["updated"] = now_utc_iso()
             ms["terrain_date"] = live.get("terrain_date")
             save_json(MAPST, ms)

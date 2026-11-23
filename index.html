@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Nieve Vail</title>
+<meta name="description" content="Pronóstico Cumbre, mapa 3D, cámaras, satélite y probabilidad de apertura de los Back Bowls de Vail.">
+<meta name="theme-color" content="#14233a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Nieve Vail">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
@@ -72,8 +79,8 @@
 
   <!-- ============ PRONÓSTICO ============ -->
   <section class="view" id="v-pronostico">
-    <h2>Próximos 15 días · Cumbre</h2>
-    <p class="small ink2">Nuestro motor estilo PEAKS para la parte alta de Vail (3,390 m): junta cinco fuentes, corrige cada una con lo que de verdad nevó y calcula un rango probable.</p>
+    <h2>Próximos 16 días · Cumbre</h2>
+    <p class="small ink2" id="fc-intro"></p>
     <div class="kv kv3" id="fc-tot"></div>
     <div class="legend" id="lg-fc" style="margin-top:12px"></div>
     <div class="chart" id="ch-fc"></div>
@@ -81,17 +88,20 @@
     <h3 style="margin:16px 0 2px">Lo que viene</h3>
     <ul class="list story" id="fc-story"></ul>
     <h2>Comparación de fuentes</h2>
-    <p class="small ink2">Nieve por día según cada fuente, tal como la publican (antes de corregir). La fila Cumbre es el resultado final.</p>
+    <p class="small ink2">Nieve por día según cada fuente, tal como la publican (antes de corregir). La fila Cumbre es el resultado final; la última, la probabilidad de nevada según 103 escenarios de ensambles.</p>
     <div class="scroll"><table class="heat" id="t-cmp"></table></div>
-    <h2>Lo que Cumbre ha aprendido</h2>
+    <h2>Lo que Cumbre aprendió</h2>
     <p class="small ink2" id="learn-intro"></p>
-    <div class="scroll"><table id="t-learn"></table></div>
+    <div class="kv kv3" id="learn-kv"></div>
+    <div class="scroll" style="margin-top:12px"><table id="t-learn"></table></div>
+    <p class="tiny muted" id="learn-note"></p>
     <details><summary>Cómo funciona Cumbre</summary>
-      <p class="small ink2">1. Convierte cada fuente a pulgadas de nieve en la parte alta. Para ECMWF (vía MET Norway) transforma la lluvia equivalente en nieve con una relación que depende de la temperatura a 3,390 m: más frío, nieve más ligera y más esponjosa.</p>
-      <p class="small ink2">2. Corrige cada fuente con su historial: compara lo que pronosticó para mañana y pasado con la nieve que Vail reportó después. Cuando una fuente anuncia nieve, multiplica por lo que de verdad suele caer; cuando casi nadie anuncia nieve, suma la nevada ligera que se les escapa, según la probabilidad de meteoblue.</p>
-      <p class="small ink2">3. Promedia las fuentes dando más peso a las que se equivocan menos y calcula un rango del 10% al 90%. Del día 11 al 15 ya no hay cantidades confiables: usa la probabilidad de meteoblue por la nevada típica de esa fecha en Vail.</p>
-      <p class="small ink2">4. La probabilidad de que abran los Back Bowls usa estos 15 días con su incertidumbre, y después las secuencias reales de nevadas de 22 temporadas.</p>
-      <p class="small ink2">A diferencia de PEAKS, Cumbre no entrena un modelo de alta resolución con miles de estaciones: aprende solo de Vail y mejora con cada nevada de la temporada.</p>
+      <p class="small ink2">1. Junta el pronóstico de Vail, el del Servicio Meteorológico de EE. UU. (NWS) y 9 modelos: ECMWF, AIFS (la inteligencia artificial de ECMWF), GFS, HRRR, NBM, ICON, GEM, UKMO y JMA. De cada modelo toma la lluvia equivalente hora por hora en la parte alta (3,390 m) y la convierte en nieve según la temperatura: más frío, nieve más ligera y esponjosa.</p>
+      <p class="small ink2">2. Corrige cada fuente con lo que se equivoca. Lo aprendió comparando lo que cada modelo pronosticó 1 a 7 días antes, en las últimas temporadas, con lo que de verdad cayó (estación SNOTEL de Vail Mountain, ajustada al reporte de Vail). Además sigue aprendiendo con cada reporte de 24 h.</p>
+      <p class="small ink2">3. Mezcla las fuentes dando más peso a las que menos se equivocan para Vail en ese plazo. Cuando casi todas dicen seco, suma la nevada ligera que los modelos suelen no ver en las cumbres.</p>
+      <p class="small ink2">4. Los ensambles (51 escenarios de ECMWF, 31 de GFS y 21 de GEM) dan la probabilidad de nevada, el rango del 10% al 90% y cubren los días 11 a 16.</p>
+      <p class="small ink2">5. La probabilidad de los Back Bowls sortea miles de escenarios con esta distribución día por día y, después, las secuencias reales de nevadas de 22 temporadas.</p>
+      <p class="small ink2">Se reentrena cada lunes y se actualiza cada 3 horas, solo, en GitHub.</p>
     </details>
     <h2>Fuentes en detalle</h2>
     <details><summary>Pronóstico oficial de Vail</summary>
@@ -106,26 +116,29 @@
       <ul class="list" id="afd"></ul>
       <p class="tiny muted" id="afd-meta"></p>
     </details>
-    <details><summary>snow-forecast.com</summary>
-      <p class="small muted" id="sf-meta"></p>
-      <div class="scroll"><table id="t-sf"></table></div>
+    <details><summary>Ensambles</summary>
+      <div class="scroll"><table id="t-ens"></table></div>
+      <p class="tiny muted" id="ens-meta"></p>
     </details>
-    <details><summary>ECMWF y meteoblue</summary>
-      <p class="small ink2" id="met-meta"></p>
-    </details>
-    <p class="small" style="margin-top:12px">OpenSnow · Vail Daily Snow: <span id="opensnow"></span></p>
+    <p class="small" style="margin-top:12px" id="opensnow-row">OpenSnow · Vail Daily Snow: <span id="opensnow"></span></p>
   </section>
 
   <!-- ============ MAPA ============ -->
   <section class="view" id="v-mapa">
     <h2>Qué está abierto</h2>
-    <div class="qrow" style="justify-content:space-between">
-      <p class="small ink2" id="map-sum" style="margin:0"></p>
-      <button type="button" class="chip" id="tilt" aria-pressed="false">Vista 3D</button>
+    <p class="small ink2" id="map-sum" style="margin-top:0"></p>
+    <div class="mapwrap" id="mapwrap">
+      <div id="map3d" role="region" aria-label="Mapa 3D de Vail"></div>
+      <div class="mapviews" role="group" aria-label="Vistas">
+        <button type="button" class="chip" data-view="bowls" aria-pressed="true">Back Bowls</button>
+        <button type="button" class="chip" data-view="front" aria-pressed="false">Frente</button>
+        <button type="button" class="chip" data-view="all" aria-pressed="false">Todo</button>
+      </div>
+      <div class="mapmsg" id="mapmsg">Cargando mapa 3D…</div>
     </div>
+    <div class="chips" id="map-layers" role="group" aria-label="Capas" style="margin-top:10px"></div>
     <div class="legend" id="lg-map"></div>
-    <div class="mapbox" id="mapbox"></div>
-    <p class="tiny muted">Mapa esquemático, no a escala: zonas y telesillas en su posición aproximada (norte arriba). Toca una zona para ver sus pistas.</p>
+    <p class="tiny muted" id="map-note"></p>
     <div class="card" id="zone-detail"></div>
     <h2>Mapas reales</h2>
     <div class="btns" id="map-links"></div>
@@ -134,22 +147,29 @@
   <!-- ============ CÁMARAS ============ -->
   <section class="view" id="v-camaras">
     <h2>Cámaras en vivo</h2>
-    <p class="small ink2">Cada botón abre la transmisión oficial en Safari. Las páginas privadas de Claude no pueden mostrar video de otros sitios dentro de la app.</p>
-    <div class="grid2" id="cams"></div>
+    <p class="small ink2">Toca una cámara para ver la transmisión. Se carga una a la vez para no gastar datos.</p>
+    <div id="cams"></div>
   </section>
 
   <!-- ============ SATÉLITE ============ -->
   <section class="view" id="v-satelite">
-    <h2>Cobertura de nieve desde el espacio</h2>
-    <div class="card" id="sat-best"></div>
-    <h3>Pasadas recientes de Sentinel-2</h3>
+    <h2>Nieve vista desde el espacio</h2>
+    <p class="small ink2" id="sat-intro" style="margin-top:0"></p>
+    <div class="satbox" id="satbox"></div>
+    <div class="chips" id="sat-layers" role="group" aria-label="Capa" style="margin-top:10px"></div>
+    <div class="kv kv3" id="sat-kv" style="margin-top:12px"></div>
+    <h2>Cobertura de nieve esta temporada</h2>
+    <p class="small ink2" id="sat-chart-intro"></p>
+    <div class="legend" id="lg-sat"></div>
+    <div class="chart" id="ch-sat"></div>
+    <h3>Pasadas de Sentinel-2</h3>
     <ul class="list" id="sat-list"></ul>
     <p class="tiny muted" id="sat-note"></p>
-    <h3>Imagen diaria y 3D</h3>
+    <h3>Más imágenes</h3>
     <div class="btns" id="sat-links"></div>
-    <details><summary>Cómo leer la nieve en las imágenes</summary>
-      <p class="small ink2">Sentinel-2 (10 m) muestra cada bowl con detalle, pero pasa cada 2 a 5 días y las nubes lo tapan seguido. En NASA Worldview, la capa HLS (30 m) combina Landsat y Sentinel-2; MODIS y VIIRS pasan todos los días pero con 250 a 375 m por pixel. En la combinación de bandas 7-2-1 de MODIS la nieve se ve turquesa y las nubes blancas, útil para distinguirlas.</p>
-      <p class="small ink2">Los Back Bowls miran al sur: son los primeros en perder nieve con el sol. Si ves roca o pasto en Sun Up y Sun Down mientras el lado frontal está blanco, falta base.</p>
+    <details><summary>Cómo detecto la nieve</summary>
+      <p class="small ink2">Sentinel-2 pasa cada 2 a 5 días con 10 m por pixel. La nieve refleja mucha luz visible pero casi nada del infrarrojo de onda corta, así que el índice NDSI (verde menos infrarrojo, entre su suma) la separa de la roca, el pasto y el bosque. Las nubes se quitan con la clasificación de escena de ESA y el porcentaje se calcula solo con los pixeles despejados.</p>
+      <p class="small ink2">Los Back Bowls miran al sur: son los primeros en perder nieve con el sol. Si el frente se ve blanco y los bowls cafés, falta base natural. Las franjas blancas del frente al inicio de temporada son nieve artificial.</p>
     </details>
   </section>
 
@@ -175,6 +195,7 @@
 </main>
 <footer class="wrap" id="foot"></footer>
 
+<script src="assets/map3d.js"></script>
 <script src="assets/app.js"></script>
 </body>
 </html>
