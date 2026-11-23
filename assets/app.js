@@ -584,8 +584,9 @@ function renderMapa(){
     if (!window.Map3D) return fallback("falta map3d.js");
     const areas = ((MAPST || {}).areas || {}).features || [];
     Map3D.init($("#map3d"), { runs: Map3D.prepare(geo, MAPST), areas, sat: ov ? { true: ov.true, snow: ov.snow, coordinates: ov.coordinates, date: fmtD(d2n(ov.date)) } : null,
+      onNoTerrain: () => { const b = document.querySelector('#map-layers .chip[data-id="terrain"]'); if (b) { b.setAttribute("aria-pressed", "false"); b.disabled = true; b.textContent = "Relieve 3D no disponible"; } },
       onArea: name => { selZone = name; renderZoneDetail(); const f = areas.find(x => x.properties.name === name); if (f) Map3D.flyToArea(f.center); $("#zone-detail").scrollIntoView({ behavior: "smooth", block: "nearest" }); } })
-      .then(() => { mapReady = true; msg.remove(); })
+      .then(() => { mapReady = true; if (msg.isConnected) msg.remove(); })
       .catch(fallback);
   };
   if (OSMGEO) go(OSMGEO);

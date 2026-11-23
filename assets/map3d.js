@@ -5,9 +5,9 @@
   "use strict";
   const LIB = "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl";
   const VIEWS = {
-    bowls: { center: [-106.347, 39.5955], zoom: 13.0, pitch: 63, bearing: -6 },
-    front: { center: [-106.372, 39.6335], zoom: 12.9, pitch: 61, bearing: 174 },
-    all: { center: [-106.352, 39.607], zoom: 12.15, pitch: 48, bearing: -18 },
+    bowls: { center: [-106.342, 39.5985], zoom: 12.3, pitch: 60, bearing: -8 },
+    front: { center: [-106.372, 39.6325], zoom: 12.55, pitch: 60, bearing: 174 },
+    all: { center: [-106.350, 39.6060], zoom: 11.75, pitch: 45, bearing: -18 },
   };
   const BB = ["Sun Down Bowl", "Sun Up Bowl", "Tea Cup Bowl", "China Bowl", "Siberia Bowl", "Mongolia Bowl"];
   let map = null, opts = null, markers = [], loaded = false;
@@ -100,7 +100,7 @@
       el.querySelector("span").textContent = p.open + "/" + p.total;
       el.setAttribute("aria-label", p.name + ": " + p.open + " de " + p.total + " pistas abiertas");
       el.addEventListener("click", (e) => { e.stopPropagation(); opts.onArea && opts.onArea(p.name); });
-      markers.push(new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat(c).addTo(map));
+      markers.push(new maplibregl.Marker({ element: el, anchor: "center", opacity: "1", opacityWhenCovered: "0.85" }).setLngLat(c).addTo(map));
     }
   }
 
@@ -132,13 +132,19 @@
     });
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
     map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: o.sat ? "Imagen: Sentinel-2, Copernicus (" + o.sat.date + ")" : "" }), "bottom-right");
+    map.once("render", () => { const m = document.getElementById("mapmsg"); if (m) m.remove(); });
     return new Promise((res, rej) => {
       const to = setTimeout(() => rej(new Error("El mapa tardó demasiado en cargar")), 25000);
-      map.on("load", () => {
+      let done = false;
+      const ready = () => {
+        if (done) return;
+        done = true;
         clearTimeout(to);
         try { map.setTerrain({ source: "dem", exaggeration: 1.35 }); } catch (e) { /* 2D fallback */ }
         try { if (map.setSky) map.setSky({ "sky-color": dark() ? "#0b1622" : "#b9d4ef", "horizon-color": dark() ? "#1c2b3c" : "#eef4fa", "sky-horizon-blend": 0.6, "horizon-fog-blend": 0.7, "fog-color": dark() ? "#0d151f" : "#e8edf3", "fog-ground-blend": 0.25 }); } catch (e) { /* older lib */ }
         addMarkers();
+        const at = host.querySelector(".maplibregl-ctrl-attrib");
+        if (at) at.classList.remove("maplibregl-compact-show");
         const layersHit = ["runs-open", "runs-closed", "lifts-open", "lifts-closed", "piste-area"];
         map.on("click", (e) => {
           const pad = 12, b = [[e.point.x - pad, e.point.y - pad], [e.point.x + pad, e.point.y + pad]];
@@ -149,8 +155,22 @@
         });
         loaded = true;
         res(map);
+      };
+      if (map.isStyleLoaded()) ready(); else map.once("style.load", ready);
+      map.once("load", ready);
+      let demErr = 0;
+      map.on("error", (e) => {
+        if (e && (e.sourceId === "dem" || e.sourceId === "hs")) {          // relief tiles unreachable: go flat instead of a broken 3D view
+          demErr++;
+          if (demErr === 4) {
+            try { map.setTerrain(null); } catch (x) { /* ignore */ }
+            if (map.getLayer("hillshade")) map.setLayoutProperty("hillshade", "visibility", "none");
+            opts.onNoTerrain && opts.onNoTerrain();
+          }
+          return;
+        }
+        if (!loaded && e && e.error && /style|WebGL/i.test(String(e.error.message))) { clearTimeout(to); rej(e.error); }
       });
-      map.on("error", (e) => { if (!loaded && e && e.error && /style|WebGL/i.test(String(e.error.message))) { clearTimeout(to); rej(e.error); } });
     });
   }
 

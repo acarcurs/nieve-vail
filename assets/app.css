@@ -162,7 +162,7 @@ footer{padding:10px 0 40px;color:var(--muted);font-size:12px}
 .mapwrap.schematic{height:auto;min-height:0}
 #map3d{position:absolute;inset:0}
 .mapwrap.schematic #map3d{position:relative}
-.mapviews{position:absolute;left:10px;bottom:10px;display:flex;gap:6px;z-index:2}
+.mapviews{position:absolute;left:10px;top:10px;display:flex;gap:6px;z-index:2;flex-wrap:wrap;max-width:calc(100% - 64px)}
 .mapviews .chip{background:color-mix(in srgb, var(--card) 88%, transparent);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);box-shadow:0 1px 4px rgba(0,0,0,.18)}
 .mapwrap.schematic .mapviews{display:none}
 .mapmsg{position:absolute;inset:auto 12px 50% 12px;transform:translateY(50%);text-align:center;font-size:13px;color:var(--ink-2);z-index:1}
