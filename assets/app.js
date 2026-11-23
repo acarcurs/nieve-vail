@@ -340,7 +340,7 @@ function renderNow(){
   const tiles = [
     [len(R.h24), "Nieve 24 h"], [len(R.h48), "Nieve 48 h"], [len(R.d7), "Nieve 7 días"],
     [len(R.season_total), "Acumulada temporada"], [len(R.base), "Base (con nieve artificial)"],
-    [liftsToday().size + "/" + (T.lifts_total ?? "–"), "Telesillas abiertas hoy"], [(T.trails_open ?? "–") + "/" + (T.trails_total ?? "–"), "Pistas abiertas"],
+    liftsLabel().slice(0, 2), [(T.trails_open ?? "–") + "/" + (T.trails_total ?? "–"), "Pistas abiertas"],
     [len(sn.swe, true), "Agua en la nieve (SNOTEL)" + (pctMed != null ? " · " + pctMed + "% de lo normal" : "")],
     [len(sn.depth), "Profundidad natural (SNOTEL)"],
   ];
@@ -564,6 +564,12 @@ function renderLearning(C){
   }
 }
 let mapReady = false;
+function denverHour(){ try { return +new Intl.DateTimeFormat("en-US", { timeZone: "America/Denver", hour: "numeric", hour12: false }).format(new Date()) % 24; } catch (e) { return 12; } }
+function liftsLabel(){
+  const T = L.terrain || {}, n = liftsToday().size, h = denverHour();
+  if (n === 0 && (h >= 16 || h < 9)) return ["–/" + (T.lifts_total ?? "–"), "Telesillas (cerradas por horario)", "telesillas cerradas por horario"];
+  return [n + "/" + (T.lifts_total ?? "–"), "Telesillas abiertas hoy", n + " de " + (T.lifts_total ?? "–") + " telesillas abiertas hoy"];
+}
 function liftsToday(){
   const T = L.terrain || {}, lt = L.lifts_today;
   const set = new Set(lt && lt.date === L.terrain_date ? lt.names : []);
@@ -573,7 +579,7 @@ function liftsToday(){
 function renderMapa(){
   const T = L.terrain || { areas: [], lifts: [] };
   const LT = liftsToday();
-  $("#map-sum").textContent = (T.trails_open ?? "–") + " de " + (T.trails_total ?? "–") + " pistas y " + LT.size + " de " + (T.lifts_total ?? "–") + " telesillas abiertas hoy · Back Bowls " + (T.bb_trails_open ?? 0) + "/" + (T.bb_trails_total ?? "–") + " · reporte del " + (L.terrain_date ? fmtD(d2n(L.terrain_date)) : "–") + ".";
+  $("#map-sum").textContent = (T.trails_open ?? "–") + " de " + (T.trails_total ?? "–") + " pistas y " + liftsLabel()[2] + " · Back Bowls " + (T.bb_trails_open ?? 0) + "/" + (T.bb_trails_total ?? "–") + " · reporte del " + (L.terrain_date ? fmtD(d2n(L.terrain_date)) : "–") + ".";
   legend($("#lg-map"), [{ n: "Pista abierta", c: "#35e05f" }, { n: "Cerrada", c: css("--closed") }, { n: "Telesilla abierta", c: "#ffd23f" }, { n: "Telesilla cerrada (punteada)", c: css("--ink-2") }]);
   const ov = SAT && SAT.overlay;
   $("#map-note").textContent = "Relieve 3D real (exagerado 1.35×). Pistas y telesillas de OpenStreetMap con el estado del reporte de Vail" + (MAPST && MAPST.terrain_date ? " del " + fmtD(d2n(MAPST.terrain_date)) : "") + "." + (ov ? " Imagen de fondo: Sentinel-2 del " + fmtD(d2n(ov.date)) + ", la pasada despejada más reciente." : "") + " Toca una pista para ver su nombre.";

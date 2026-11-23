@@ -5,7 +5,7 @@
   "use strict";
   const LIB = "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl";
   const VIEWS = {
-    bowls: { center: [-106.342, 39.5985], zoom: 12.3, pitch: 60, bearing: -8 },
+    bowls: { center: [-106.343, 39.5990], zoom: 12.12, pitch: 60, bearing: -6 },
     front: { center: [-106.372, 39.6325], zoom: 12.55, pitch: 60, bearing: 174 },
     all: { center: [-106.350, 39.6060], zoom: 11.75, pitch: 45, bearing: -18 },
   };
@@ -28,6 +28,47 @@
   function dark() {
     const t = document.documentElement.getAttribute("data-theme");
     return t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+
+  /* Image sources do not drape well over 3D terrain, so the Sentinel-2 pictures are served to the map
+     as raster tiles cut on the fly from the single image ("s2img://<name>/{z}/{x}/{y}"). */
+  const IMGS = {};
+  let protocolOn = false;
+  function loadImg(url) {
+    return new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error("imagen " + url)); im.src = url; });
+  }
+  function tileBounds(z, x, y) {
+    const n = Math.pow(2, z);
+    const lon = (v) => v / n * 360 - 180;
+    const lat = (v) => Math.atan(Math.sinh(Math.PI * (1 - 2 * v / n))) * 180 / Math.PI;
+    return [lon(x), lat(y + 1), lon(x + 1), lat(y)];     // W S E N
+  }
+  function addProtocol() {
+    if (protocolOn) return;
+    protocolOn = true;
+    maplibregl.addProtocol("s2img", async (params) => {
+      const m = /^s2img:\/\/([^/]+)\/(\d+)\/(\d+)\/(\d+)/.exec(params.url);
+      const R = m && IMGS[m[1]];
+      const size = 256;
+      const cv = document.createElement("canvas"); cv.width = size; cv.height = size;
+      if (R) {
+        const im = await R.img;
+        const [w, s, e, n] = tileBounds(+m[2], +m[3], +m[4]);
+        const [W, S, E, N] = R.bounds;
+        const iw = im.naturalWidth, ih = im.naturalHeight;
+        const px = (lon) => (lon - W) / (E - W) * iw, py = (lat) => (N - lat) / (N - S) * ih;
+        let sx0 = px(w), sx1 = px(e), sy0 = py(n), sy1 = py(s);
+        const dx = (v) => (v - px(w)) / (px(e) - px(w)) * size, dy = (v) => (v - py(n)) / (py(s) - py(n)) * size;
+        const cx0 = Math.max(0, sx0), cx1 = Math.min(iw, sx1), cy0 = Math.max(0, sy0), cy1 = Math.min(ih, sy1);
+        if (cx1 > cx0 && cy1 > cy0) {
+          const ctx = cv.getContext("2d");
+          ctx.imageSmoothingQuality = "high";
+          ctx.drawImage(im, cx0, cy0, cx1 - cx0, cy1 - cy0, dx(cx0), dy(cy0), dx(cx1) - dx(cx0), dy(cy1) - dy(cy0));
+        }
+      }
+      const blob = await new Promise((r) => cv.toBlob(r, "image/png"));
+      return { data: await blob.arrayBuffer() };
+    });
   }
 
   function prepare(geo, st) {
@@ -62,8 +103,11 @@
       { id: "aerial", type: "raster", source: "aerial", layout: { visibility: "none" }, paint: { "raster-opacity": 0.95 } },
     ];
     if (o.sat) {
-      sources.s2 = { type: "image", url: o.sat.true, coordinates: o.sat.coordinates };
-      sources.snow = { type: "image", url: o.sat.snow, coordinates: o.sat.coordinates };
+      const c = o.sat.coordinates, bounds = [c[0][0], c[2][1], c[1][0], c[0][1]];
+      IMGS.true = { img: loadImg(o.sat.true), bounds };
+      IMGS.snow = { img: loadImg(o.sat.snow), bounds };
+      sources.s2 = { type: "raster", tiles: ["s2img://true/{z}/{x}/{y}"], tileSize: 256, bounds, minzoom: 8, maxzoom: 16 };
+      sources.snow = { type: "raster", tiles: ["s2img://snow/{z}/{x}/{y}"], tileSize: 256, bounds, minzoom: 8, maxzoom: 15 };
       layers.push({ id: "s2", type: "raster", source: "s2", paint: { "raster-opacity": 1, "raster-fade-duration": 0 } });
       layers.push({ id: "snow", type: "raster", source: "snow", layout: { visibility: "none" }, paint: { "raster-opacity": 0.9, "raster-fade-duration": 0 } });
     }
@@ -121,6 +165,7 @@
     opts = o;
     if (!webgl()) throw new Error("Este dispositivo no tiene WebGL");
     await loadLib();
+    addProtocol();
     if (map) { map.remove(); map = null; }
     loaded = false;
     map = new maplibregl.Map({
