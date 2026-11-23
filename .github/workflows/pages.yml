@@ -3,7 +3,7 @@ name: Publicar página
 on:
   push:
     branches: [main]
-    paths-ignore: ["data/**", "README.md"]
+    paths: ["index.html", "assets/**", "favicon.svg", "data/insights.json", "data/static.json", ".github/workflows/pages.yml"]
   workflow_dispatch:
   workflow_call:
 

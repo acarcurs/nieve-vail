@@ -29,6 +29,7 @@ function sv(tag, attrs, ...kids){
 }
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 let UNITS = "metric";
+window.UNITS_NOW = () => UNITS;
 try { UNITS = localStorage.getItem("units") || "metric"; } catch (e) {}
 const len = (inch, dec) => inch == null ? "–" : (UNITS === "metric"
   ? (Math.round(inch * 2.54 * (dec ? 10 : 1)) / (dec ? 10 : 1)).toLocaleString("es-MX") + " cm"
@@ -353,7 +354,8 @@ function mergeInsights(){
   const ck = x => (x && x.checked) || "";
   if (I.news && ck(I.news) >= ck(L.news)) L.news = I.news;
   if (I.discussion) L.discussion = I.discussion;
-  if (I.nws) L.nws_es = I.nws;
+  const hrs = (a, b) => (new Date(a) - new Date(b)) / 36e5;
+  if (I.nws && I.nws.issued && L.nws && L.nws.issued && Math.abs(hrs(L.nws.issued, I.nws.issued)) <= 12) L.nws_es = I.nws;
   if (I.afd) L.afd_es = I.afd;
   const today = d2n(L.today || (L.generated_at || "").slice(0, 10) || n2d(d2n("2026-11-22")));
   const age = L.news && L.news.checked ? today - d2n(L.news.checked) : 99;
@@ -505,8 +507,12 @@ function renderPronostico(){
   $("#vail-fc-src").textContent = "Publicado por Vail en su reporte de nieve (" + vailUpd((L.report || {}).updated_text) + ").";
   // NWS
   const N = L.nws || {}, NE = L.nws_es;
-  const periods = (NE && NE.periods && NE.periods.length) ? NE.periods : (N.periods || []);
-  $("#nws-meta").replaceChildren((N.office ? "NWS " + N.office : "NWS") + " · punto a " + (N.elevation_m ? Math.round(N.elevation_m).toLocaleString("es-MX") + " m" : "3,390 m") + (N.issued ? " · emitido " + new Date(N.issued).toLocaleString("es-MX", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "") + (NE ? "" : " · en inglés") + " · ", el("a", { href: N.url || "https://forecast.weather.gov", target: "_blank", rel: "noopener" }, "weather.gov"));
+  let auto = false;
+  const periods = (NE && NE.periods && NE.periods.length) ? NE.periods : (N.periods || []).map(p => {
+    const t = window.NwsEs ? NwsEs.translate(p.text) : null; if (t) auto = true;
+    return { name: window.NwsEs ? NwsEs.periodName(p.name) : p.name, text: t || p.text };
+  });
+  $("#nws-meta").replaceChildren((N.office ? "NWS " + N.office : "NWS") + " · punto a " + (N.elevation_m ? Math.round(N.elevation_m).toLocaleString("es-MX") + " m" : "3,390 m") + (N.issued ? " · emitido " + new Date(N.issued).toLocaleString("es-MX", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "") + (NE ? "" : auto ? " · traducido automáticamente" : " · en inglés") + " · ", el("a", { href: N.url || "https://forecast.weather.gov", target: "_blank", rel: "noopener" }, "weather.gov"));
   $("#nws").replaceChildren(...periods.map(p => el("li", null, el("div", { class: "l" }, el("b", null, p.name), el("div", { class: "small ink2" }, p.text)))));
   // AFD
   const AF = L.afd || {}, AE = L.afd_es;

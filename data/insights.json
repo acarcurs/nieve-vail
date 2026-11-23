@@ -1,0 +1,48 @@
+{
+ "updated": "2026-11-23T01:15:00Z",
+ "news": {
+  "checked": "2026-11-22",
+  "signal": 0,
+  "announced_date": null,
+  "label": "Sin señales",
+  "summary": "No hay anuncios ni reportes de trabajos de apertura en los Back Bowls. Vail abrió la temporada el 13 de noviembre con terreno limitado y el pronóstico solo trae nevadas ligeras esta semana.",
+  "items": [
+   {
+    "title": "Vail abre la temporada 2026-27 con terreno limitado (13 nov)",
+    "source": "Unofficial Networks",
+    "url": "https://unofficialnetworks.com/2026/11/12/vail-mountain-opens-tomorrow/",
+    "date": "2026-11-12"
+   },
+   {
+    "title": "OpenSnow: algo de nieve el lunes en la noche y quizá a finales de semana",
+    "source": "OpenSnow",
+    "url": "https://opensnow.com/dailysnow/vail",
+    "date": "2026-11-22"
+   },
+   {
+    "title": "Vail Resorts confía en un 'Super El Niño' tras un invierno de poca nieve",
+    "source": "Vail Resorts",
+    "url": "https://investors.vailresorts.com/node/23701",
+    "date": "2026-08-18"
+   }
+  ]
+ },
+ "discussion": {
+  "source": "OpenSnow · Vail Daily Snow",
+  "author": "Joel Gratz",
+  "date": "2026-11-22",
+  "headline": "Algo de nieve el lunes en la noche y quizá otra vez a finales de semana",
+  "url": "https://opensnow.com/dailysnow/vail"
+ },
+ "afd": {
+  "issued": "2026-11-22T23:56:00+00:00",
+  "office": "NWS Grand Junction",
+  "url": "https://forecast.weather.gov/product.php?site=GJT&issuedby=GJT&product=AFD&format=txt&version=1&glossary=0",
+  "bullets": [
+   "Domingo seco y más fresco por una cresta débil de alta presión.",
+   "Un sistema rápido trae chubascos de nieve el lunes; en las montañas del centro de Colorado se esperan acumulaciones ligeras, por debajo de nivel de aviso. Lo mejor caería en los San Juan.",
+   "Martes y miércoles secos, con temperaturas cerca o un poco abajo de lo normal.",
+   "La semana de Acción de Gracias sigue activa: otro sistema débil es posible el jueves con flujo del noroeste, que favorece más a la cordillera Park. Los detalles todavía son inciertos."
+  ]
+ }
+}
