@@ -1,48 +1,109 @@
 {
- "updated": "2026-11-23T01:15:00Z",
- "news": {
-  "checked": "2026-11-22",
-  "signal": 0,
-  "announced_date": null,
-  "label": "Sin señales",
-  "summary": "No hay anuncios ni reportes de trabajos de apertura en los Back Bowls. Vail abrió la temporada el 13 de noviembre con terreno limitado y el pronóstico solo trae nevadas ligeras esta semana.",
-  "items": [
+ "updated": "2026-11-24T18:12:17Z",
+ "afd": {
+  "issued": "2026-11-24T11:28:00+00:00",
+  "office": "NWS Grand Junction",
+  "url": "https://forecast.weather.gov/product.php?site=GJT&issuedby=GJT&product=AFD&format=txt&version=1&glossary=0",
+  "bullets": [
+   "Martes y miércoles despejados y secos tras terminar las nevadas del lunes en las montañas centrales.",
+   "Día de Acción de Gracias (jueves) seco y con temperaturas arriba de lo normal.",
+   "Viernes a sábado: flujo del noroeste con mayor probabilidad de nieve, sobre todo en Park Range; para la zona de Vail también hay posibilidad, pero con confianza baja en cantidades.",
+   "Desde el domingo y a inicios de la próxima semana el patrón podría seguir activo, aunque los modelos difieren mucho."
+  ]
+ },
+ "nws": {
+  "issued": "2026-11-24T16:01:50+00:00",
+  "periods": [
    {
-    "title": "Vail abre la temporada 2026-27 con terreno limitado (13 nov)",
-    "source": "Unofficial Networks",
-    "url": "https://unofficialnetworks.com/2026/11/12/vail-mountain-opens-tomorrow/",
-    "date": "2026-11-12"
+    "name": "Hoy",
+    "text": "Soleado, máxima cerca de 25 °F. Viento del oeste-noroeste de 0 a 5 mph."
    },
    {
-    "title": "OpenSnow: algo de nieve el lunes en la noche y quizá a finales de semana",
-    "source": "OpenSnow",
-    "url": "https://opensnow.com/dailysnow/vail",
-    "date": "2026-11-22"
+    "name": "Esta noche",
+    "text": "Mayormente despejado, mínima alrededor de 12 °F. Viento del suroeste de 0 a 5 mph."
    },
    {
-    "title": "Vail Resorts confía en un 'Super El Niño' tras un invierno de poca nieve",
-    "source": "Vail Resorts",
-    "url": "https://investors.vailresorts.com/node/23701",
-    "date": "2026-08-18"
+    "name": "Miércoles",
+    "text": "Mayormente soleado, máxima cerca de 34 °F. Viento del oeste de 0 a 5 mph."
+   },
+   {
+    "name": "Miércoles en la noche",
+    "text": "Parcialmente nublado, mínima alrededor de 20 °F. Viento del sur-sureste de 0 a 5 mph."
+   },
+   {
+    "name": "Día de Acción de Gracias",
+    "text": "Mayormente soleado, máxima cerca de 30 °F. Viento del oeste-suroeste de 0 a 5 mph."
+   },
+   {
+    "name": "Jueves en la noche",
+    "text": "Mayormente despejado, mínima alrededor de 20 °F."
+   },
+   {
+    "name": "Viernes",
+    "text": "Ligera probabilidad de chubascos de nieve después de las 5 pm. Parcialmente soleado, máxima cerca de 29 °F. Acumulación posible de menos de media pulgada."
+   },
+   {
+    "name": "Viernes en la noche",
+    "text": "Probables chubascos de nieve. Mayormente nublado, mínima alrededor de 21 °F. Acumulación posible de 1 a 2 pulgadas."
+   },
+   {
+    "name": "Sábado",
+    "text": "Chubascos de nieve. Mayormente nublado, máxima cerca de 26 °F. Acumulación posible de 2 a 4 pulgadas."
+   },
+   {
+    "name": "Sábado en la noche",
+    "text": "Probables chubascos de nieve antes de las 5 am. Mayormente nublado, mínima alrededor de 15 °F. Acumulación posible de menos de una pulgada."
+   },
+   {
+    "name": "Domingo",
+    "text": "Mayormente soleado, máxima cerca de 26 °F."
+   },
+   {
+    "name": "Domingo en la noche",
+    "text": "Probabilidad de chubascos de nieve después de las 11 pm. Mayormente nublado, mínima alrededor de 19 °F."
+   },
+   {
+    "name": "Lunes",
+    "text": "Probabilidad de chubascos de nieve. Parcialmente soleado, máxima cerca de 25 °F. Poca o nula acumulación."
+   },
+   {
+    "name": "Lunes en la noche",
+    "text": "Probabilidad de chubascos de nieve antes de las 5 am. Mayormente nublado, mínima alrededor de 21 °F. Poca o nula acumulación."
    }
   ]
  },
  "discussion": {
   "source": "OpenSnow · Vail Daily Snow",
   "author": "Joel Gratz",
-  "date": "2026-11-22",
-  "headline": "Algo de nieve el lunes en la noche y quizá otra vez a finales de semana",
+  "date": "2026-11-23",
+  "headline": "Algo de nieve el lunes y QUIZÁ una tormenta importante este fin de semana",
   "url": "https://opensnow.com/dailysnow/vail"
  },
- "afd": {
-  "issued": "2026-11-22T23:56:00+00:00",
-  "office": "NWS Grand Junction",
-  "url": "https://forecast.weather.gov/product.php?site=GJT&issuedby=GJT&product=AFD&format=txt&version=1&glossary=0",
-  "bullets": [
-   "Domingo seco y más fresco por una cresta débil de alta presión.",
-   "Un sistema rápido trae chubascos de nieve el lunes; en las montañas del centro de Colorado se esperan acumulaciones ligeras, por debajo de nivel de aviso. Lo mejor caería en los San Juan.",
-   "Martes y miércoles secos, con temperaturas cerca o un poco abajo de lo normal.",
-   "La semana de Acción de Gracias sigue activa: otro sistema débil es posible el jueves con flujo del noroeste, que favorece más a la cordillera Park. Los detalles todavía son inciertos."
+ "news": {
+  "checked": "2026-11-24",
+  "signal": 0,
+  "announced_date": null,
+  "label": "Sin señales",
+  "summary": "Sin anuncios ni reportes de trabajos de apertura en los Back Bowls (0 de 55 pistas abiertas). Vail sumó la góndola Eagle Bahn y Lionshead tras una tormenta mayor a lo esperado, pero nada indica una apertura próxima de los Bowls.",
+  "items": [
+   {
+    "title": "Vail abre la góndola Eagle Bahn y suma Lionshead tras una tormenta que superó lo esperado",
+    "source": "Vail Daily",
+    "url": "https://news.google.com/rss/articles/CBMiugFBVV95cUxNU0c2Q0tBdTJJdS1LOXBYZE9rUGJVNmdGMHQ4V2dyVEM5NjZWVUhmSTNSX3htV0t1NFF0TC1lelNPZHZ5NWlHVlFyWWxWSXN4c183VGdHOWQtdkRkYjNCRC14aXJ6cGhDQUdXbVloVndwbWJURVAwempISklFb3dheUhIbDZJQnBYMEZCbnctTGhxUFR1Z1F0UjNUTy01MUVlRjRNanlkemlGTFZYUmI0OENTRnN2OUpYNUE?oc=5",
+    "date": "2026-11-21"
+   },
+   {
+    "title": "OpenSnow: algo de nieve el lunes y quizá una tormenta importante el fin de semana",
+    "source": "OpenSnow",
+    "url": "https://opensnow.com/dailysnow/vail",
+    "date": "2026-11-23"
+   },
+   {
+    "title": "Vail abre la temporada 2026-27 con terreno limitado (13 nov)",
+    "source": "Unofficial Networks",
+    "url": "https://unofficialnetworks.com/2026/11/12/vail-mountain-opens-tomorrow/",
+    "date": "2026-11-12"
+   }
   ]
  }
 }
