@@ -238,6 +238,13 @@
     if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", on ? "visible" : "none");
   }
   function resize() { if (map) map.resize(); }
+  function update(runs, areas) {
+    if (!map || !loaded) return;
+    const src = map.getSource("runs");
+    if (src) src.setData(runs);
+    opts.areas = areas;
+    addMarkers();
+  }
 
-  window.Map3D = { init, setView, setLayer, flyToArea, resize, prepare, VIEWS };
+  window.Map3D = { init, setView, setLayer, flyToArea, resize, update, prepare, VIEWS };
 })();

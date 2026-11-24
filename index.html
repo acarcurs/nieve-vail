@@ -20,11 +20,18 @@
 <div class="wrap">
   <header class="top">
     <div class="brand">Nieve Vail<small id="updated">Cargando datos…</small></div>
-    <div class="units" role="group" aria-label="Unidades">
-      <button type="button" id="u-metric" aria-pressed="true">cm · °C</button>
-      <button type="button" id="u-imp" aria-pressed="false">in · °F</button>
+    <div class="tools">
+      <button type="button" id="refresh" class="refresh" aria-describedby="refresh-msg">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M20.5 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span id="refresh-label">Actualizar</span>
+      </button>
+      <div class="units" role="group" aria-label="Unidades">
+        <button type="button" id="u-metric" aria-pressed="true">cm · °C</button>
+        <button type="button" id="u-imp" aria-pressed="false">in · °F</button>
+      </div>
     </div>
   </header>
+  <p id="refresh-msg" class="sr-only" aria-live="polite"></p>
 </div>
 <nav class="tabs" aria-label="Secciones"><div class="wrap">
   <a href="#hoy" data-v="hoy">Hoy</a>

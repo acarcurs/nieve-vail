@@ -197,3 +197,15 @@ footer{padding:10px 0 40px;color:var(--muted);font-size:12px}
 .satbox.snowon .ovl{opacity:1}
 .satbox.snowon img:first-child{filter:grayscale(.85) brightness(.75)}
 .satlab{position:absolute;transform:translate(-50%,-50%);font:700 11px/1.2 var(--body);color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.9),0 0 8px rgba(0,0,0,.6);white-space:nowrap;pointer-events:none}
+
+/* ---------- refresh button ---------- */
+.tools{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none}
+.refresh{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 12px 6px 10px;font:600 13px/1 var(--body);cursor:pointer;min-height:32px}
+.refresh svg{width:15px;height:15px;flex:none}
+.refresh.busy svg{animation:spin .9s linear infinite}
+.refresh.ok{color:var(--good-ink);border-color:color-mix(in srgb, var(--good) 45%, transparent)}
+.refresh.err{color:var(--crit);border-color:color-mix(in srgb, var(--crit) 45%, transparent)}
+.refresh:disabled{cursor:progress}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){.refresh.busy svg{animation:none;opacity:.5}}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}

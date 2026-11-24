@@ -590,13 +590,14 @@ function renderMapa(){
     el("a", { class: "btn", href: Lk.openskimap, target: "_blank", rel: "noopener" }, "OpenSkiMap"),
     el("a", { class: "btn", href: Lk.vail_trailmap, target: "_blank", rel: "noopener" }, "Mapa oficial"),
     el("a", { class: "btn", href: Lk.vail_terrain, target: "_blank", rel: "noopener" }, "Estado oficial"));
-  if (mapReady){ window.Map3D && Map3D.resize(); return; }
+  if (mapReady){ if (window.Map3D){ Map3D.resize(); if (OSMGEO){ const st = liveMapStatus(); Map3D.update(Map3D.prepare(OSMGEO, st), ((st || {}).areas || {}).features || []); } } return; }
   const msg = $("#mapmsg");
   const fallback = err => { $("#map-layers").replaceChildren(); msg.textContent = "No pude cargar el mapa 3D (" + (err && err.message || err) + "). Te muestro el esquema."; setTimeout(() => msg.remove(), 4000); $("#map3d").replaceChildren(); renderMapaSchematic(); };
   const go = geo => {
     if (!window.Map3D) return fallback("falta map3d.js");
-    const areas = ((MAPST || {}).areas || {}).features || [];
-    Map3D.init($("#map3d"), { runs: Map3D.prepare(geo, MAPST), areas, sat: ov ? { true: ov.true, snow: ov.snow, coordinates: ov.coordinates, date: fmtD(d2n(ov.date)) } : null,
+    const st = liveMapStatus();
+    const areas = ((st || {}).areas || {}).features || [];
+    Map3D.init($("#map3d"), { runs: Map3D.prepare(geo, st), areas, sat: ov ? { true: ov.true, snow: ov.snow, coordinates: ov.coordinates, date: fmtD(d2n(ov.date)) } : null,
       onNoTerrain: () => { const b = document.querySelector('#map-layers .chip[data-id="terrain"]'); if (b) { b.setAttribute("aria-pressed", "false"); b.disabled = true; b.textContent = "Relieve 3D no disponible"; } },
       onArea: name => { selZone = name; renderZoneDetail(); const f = areas.find(x => x.properties.name === name); if (f) Map3D.flyToArea(f.center); $("#zone-detail").scrollIntoView({ behavior: "smooth", block: "nearest" }); } })
       .then(() => { mapReady = true; if (msg.isConnected) msg.remove(); })
@@ -940,10 +941,59 @@ async function liveVail(){
       Object.assign(row, { trails_open: T.trails_open, lifts_open: T.lifts_open, bb_trails_open: T.bb_trails_open });
     }
   }
-  if (changed){ L.live_vail = new Date().toISOString(); M = runModel(); renderHeader(); rerenderAll(); }
+  if (changed) L.live_vail = new Date().toISOString();
+  return changed;
 }
+/* map status follows the live terrain too (names were matched to OpenStreetMap by the pipeline) */
+function liveMapStatus(){
+  if (!MAPST) return MAPST;
+  const T = L.terrain || {}, tr = {};
+  for (const a of T.areas || []) for (const t of a.trails) tr[t.n] = t.o ? 1 : 0;
+  const names = Object.keys(tr), LT = liftsToday(), ls = {};
+  for (const l of T.lifts || []) ls[l.n] = LT.has(l.n) ? "open" : (l.s || "").toLowerCase();
+  const P = {}, Lf = {};
+  for (const [id, v] of Object.entries(MAPST.pistes || {})){
+    let o = tr[v[1]];
+    if (o == null){ const segs = names.filter(n => n.startsWith(v[1] + " - ")); if (segs.length) o = segs.some(n => tr[n]) ? 1 : 0; }
+    P[id] = [o == null ? v[0] : o, v[1], v[2], v[3]];
+  }
+  for (const [id, v] of Object.entries(MAPST.lifts || {})) Lf[id] = [ls[v[1]] != null ? ls[v[1]] : v[0], v[1], v[2]];
+  const feats = ((MAPST.areas || {}).features || []).map(f => { const a = (T.areas || []).find(x => x.name === f.properties.name);
+    return a ? Object.assign({}, f, { properties: Object.assign({}, f.properties, { open: a.open, total: a.total }) }) : f; });
+  return Object.assign({}, MAPST, { pistes: P, lifts: Lf, areas: { type: "FeatureCollection", features: feats } });
+}
+/* "Actualizar" button: reload every data file (skipping caches), Vail's live report, then redraw */
+let refreshing = false, lastRefresh = Date.now();
+async function refreshAll(){
+  if (refreshing || !S) return;
+  refreshing = true;
+  const btn = $("#refresh"), lab = $("#refresh-label"), msg = $("#refresh-msg");
+  btn.disabled = true; btn.classList.remove("ok", "err"); btn.classList.add("busy"); lab.textContent = "Actualizando…";
+  const prev = [L && L.generated_at, L && (L.report || {}).updated_text, SAT && SAT.overlay && SAT.overlay.id, INS && INS.updated].join("|");
+  const t = "t=" + Date.now();
+  const getN = (u, must) => fetch(u + "?" + t, { cache: "no-store" }).then(r => { if (!r.ok) throw new Error(u + " " + r.status); return r.json(); }).catch(e => { if (must) throw e; return null; });
+  let text, cls;
+  try {
+    const [l, ins, sat, cm, ms, st] = await Promise.all([getN("data/live.json", true), getN("data/insights.json"), getN("data/sat/index.json"), getN("data/cumbre_model.json"), getN("data/map/status.json"), getN("data/status.json")]);
+    L = l; INS = ins || INS; SAT = sat || SAT; CM = cm || CM; MAPST = ms || MAPST; STATUS = st || STATUS;
+    mergeInsights();
+    await liveVail();
+    M = runModel(); renderHeader(); renderFooter(); rerenderAll();
+    const now = [L.generated_at, (L.report || {}).updated_text, SAT && SAT.overlay && SAT.overlay.id, INS && INS.updated].join("|");
+    text = now !== prev ? "Datos nuevos" : "Al día"; cls = "ok";
+    msg.textContent = (now !== prev ? "Llegaron datos nuevos. " : "Ya tenías lo más reciente. ") + $("#updated").textContent;
+  } catch (e) {
+    text = "Sin conexión"; cls = "err"; msg.textContent = "No pude actualizar: revisa tu conexión.";
+  }
+  lastRefresh = Date.now();
+  btn.classList.remove("busy"); btn.classList.add(cls); lab.textContent = text; btn.disabled = false;
+  setTimeout(() => { btn.classList.remove("ok", "err"); lab.textContent = "Actualizar"; }, 2600);
+  refreshing = false;
+}
+document.addEventListener("click", e => { if (e.target.closest && e.target.closest("#refresh")) refreshAll(); });
+document.addEventListener("visibilitychange", () => { if (!document.hidden && S && Date.now() - lastRefresh > 10 * 60 * 1000) refreshAll(); });
 const bust = "t=" + Math.floor(Date.now() / 60000);
 const getJ = (u, must) => fetch(u + "?" + bust).then(r => { if (!r.ok) throw new Error(u + " " + r.status); return r.json(); }).catch(e => { if (must) throw e; return null; });
 Promise.all([getJ("data/static.json", true), getJ("data/live.json", true), getJ("data/insights.json"), getJ("data/sat/index.json"), getJ("data/cumbre_model.json"), getJ("data/map/status.json"), getJ("data/status.json")])
-  .then(([s, l, ins, sat, cm, ms, st]) => { S = s; L = l; INS = ins; SAT = sat; CM = cm; MAPST = ms; STATUS = st; mergeInsights(); M = runModel(); renderHeader(); renderFooter(); route(); liveVail(); })
+  .then(([s, l, ins, sat, cm, ms, st]) => { S = s; L = l; INS = ins; SAT = sat; CM = cm; MAPST = ms; STATUS = st; mergeInsights(); M = runModel(); renderHeader(); renderFooter(); route(); liveVail().then(ch => { if (ch){ M = runModel(); renderHeader(); rerenderAll(); } }); })
   .catch(err => { $("#fatal").replaceChildren(el("div", { class: "err" }, "No pude cargar los datos (" + err.message + "). Vuelve a abrir la página en un momento.")); route(); });
