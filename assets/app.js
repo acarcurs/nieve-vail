@@ -256,7 +256,7 @@ function barChart(host, cfg){
 /* ---------- views ---------- */
 function renderHeader(){
   const g = L.generated_at ? new Date(L.generated_at) : null;
-  $("#updated").textContent = g ? "Actualizado " + g.toLocaleString("es-MX", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
+  $("#updated").textContent = g ? "Actualizado " + g.toLocaleString("es-MX", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) + (L.live_vail ? " · reporte de Vail al momento" : "") : "";
 }
 function renderHoy(){
   const T = L.terrain || {};
@@ -891,8 +891,59 @@ let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTime
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (S && L) rerenderAll(); });
 new MutationObserver(() => { if (S && L) rerenderAll(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 setUnits(UNITS);
+/* Vail's snow report and lift/trail status change in the morning; GitHub's scheduler can lag, so the page
+   also reads them directly from the public ski-run-scraper archive when it opens. */
+const SCRAPER = "https://raw.githubusercontent.com/jacobschulman/ski-run-scraper/main/data/vail/";
+const BB_AREAS = ["Sun Down Bowl", "Sun Up Bowl", "Tea Cup Bowl", "China Bowl", "Siberia Bowl", "Mongolia Bowl"];
+function denverDate(){ try { return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Denver", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()); } catch (e) { return n2d(d2n(new Date().toISOString().slice(0, 10))); } }
+function summarizeTerrain(t){
+  const areas = [];
+  for (const a of t.GroomingAreas || []){
+    if (!(a.Trails || []).length && !(a.Lifts || []).length) continue;
+    const trails = (a.Trails || []).map(x => ({ n: x.Name, d: x.Difficulty, o: !!x.IsOpen, g: !!x.IsGroomed }));
+    areas.push({ name: a.Name, trails, open: trails.filter(x => x.o).length, total: trails.length });
+  }
+  const lifts = (t.Lifts || []).map(l => ({ n: l.Name, s: l.Status, area: l.Mountain, type: l.Type, open_time: l.OpenTime, close_time: l.CloseTime }));
+  const bb = areas.filter(a => BB_AREAS.includes(a.name));
+  return { areas, lifts, trails_open: areas.reduce((x, a) => x + a.open, 0), trails_total: areas.reduce((x, a) => x + a.total, 0),
+    lifts_open: lifts.filter(l => (l.s || "").toLowerCase() === "open").length, lifts_total: lifts.length,
+    bb_trails_open: bb.reduce((x, a) => x + a.open, 0), bb_trails_total: bb.reduce((x, a) => x + a.total, 0),
+    bb_open_list: bb.flatMap(a => a.trails.filter(x => x.o).map(x => a.name + ": " + x.n)), source_updated: t.sourceLastUpdated || t.Date };
+}
+function summarizeSnow(s){
+  const sf = s.snowfall || {}, names = ["Vail base", "Vail cima", "Lionshead base", "Lionshead cima"];
+  const fc = ((s.forecast || {}).locations || []).map((loc, i) => ({ name: names[i] || "Ubicación " + (i + 1),
+    days: (loc.forecast_days || []).map(d => ({ date: (d.date || "").slice(0, 10), hi: d.high_f, lo: d.low_f, desc: d.description, snow_day: d.snowfall_day_inches, snow_night: d.snowfall_night_inches })) }));
+  return { updated_text: s.lastUpdated, conditions: s.conditions, overnight: sf.overnight_inches, h24: sf["24hour_inches"], h48: sf["48hour_inches"], d7: sf["7day_inches"],
+    season_total: sf.season_total_inches, base: (s.baseDepth || {}).inches, forecast: fc };
+}
+async function liveVail(){
+  const day = denverDate();
+  const get = u => fetch(u, { cache: "no-cache" }).then(r => r.ok ? r.json() : null).catch(() => null);
+  const [sn, te] = await Promise.all([get(SCRAPER + "snow/" + day + ".json"), get(SCRAPER + "terrain/" + day + ".json")]);
+  let changed = false;
+  const stamp = x => { const m = /([A-Z][a-z]+ \d{1,2}, \d{4}) at (\d{1,2}):(\d{2}) ([AP]M)/.exec(x || ""); if (!m) return 0; const h = (+m[2] % 12) + (m[4] === "PM" ? 12 : 0); return Date.parse(m[1] + " " + h + ":" + m[3]) || 0; };
+  if (sn && sn.lastUpdated && stamp(sn.lastUpdated) > stamp((L.report || {}).updated_text)){
+    L.report = summarizeSnow(sn); changed = true;
+    const hv = L.history_vail || (L.history_vail = []);
+    let row = hv.find(h => h.date === day); if (!row){ row = { date: day }; hv.push(row); }
+    Object.assign(row, { base: L.report.base, season_total: L.report.season_total, h24: L.report.h24 });
+  }
+  if (te && (te.GroomingAreas || []).length){
+    const T = summarizeTerrain(te);
+    if (L.terrain_date !== day || JSON.stringify(T.areas) !== JSON.stringify((L.terrain || {}).areas) || T.lifts_open > 0){
+      L.terrain = T; L.terrain_date = day; changed = true;
+      const lt = L.lifts_today && L.lifts_today.date === day ? L.lifts_today : (L.lifts_today = { date: day, names: [] });
+      for (const l of T.lifts) if ((l.s || "").toLowerCase() === "open" && !lt.names.includes(l.n)) lt.names.push(l.n);
+      const hv = L.history_vail || (L.history_vail = []);
+      let row = hv.find(h => h.date === day); if (!row){ row = { date: day }; hv.push(row); }
+      Object.assign(row, { trails_open: T.trails_open, lifts_open: T.lifts_open, bb_trails_open: T.bb_trails_open });
+    }
+  }
+  if (changed){ L.live_vail = new Date().toISOString(); M = runModel(); renderHeader(); rerenderAll(); }
+}
 const bust = "t=" + Math.floor(Date.now() / 60000);
 const getJ = (u, must) => fetch(u + "?" + bust).then(r => { if (!r.ok) throw new Error(u + " " + r.status); return r.json(); }).catch(e => { if (must) throw e; return null; });
 Promise.all([getJ("data/static.json", true), getJ("data/live.json", true), getJ("data/insights.json"), getJ("data/sat/index.json"), getJ("data/cumbre_model.json"), getJ("data/map/status.json"), getJ("data/status.json")])
-  .then(([s, l, ins, sat, cm, ms, st]) => { S = s; L = l; INS = ins; SAT = sat; CM = cm; MAPST = ms; STATUS = st; mergeInsights(); M = runModel(); renderHeader(); renderFooter(); route(); })
+  .then(([s, l, ins, sat, cm, ms, st]) => { S = s; L = l; INS = ins; SAT = sat; CM = cm; MAPST = ms; STATUS = st; mergeInsights(); M = runModel(); renderHeader(); renderFooter(); route(); liveVail(); })
   .catch(err => { $("#fatal").replaceChildren(el("div", { class: "err" }, "No pude cargar los datos (" + err.message + "). Vuelve a abrir la página en un momento.")); route(); });

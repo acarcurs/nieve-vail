@@ -141,9 +141,11 @@ def main():
 
     # runs & lifts (OSM refreshed weekly) and their status (every run)
     geo = load_json(OSM)
-    if a.osm or not geo or dt.datetime.utcnow().weekday() == 0 and dt.datetime.utcnow().hour < 4:
+    stale = not geo or (geo.get("fetched") or "") < (today - dt.timedelta(days=7)).isoformat()
+    if a.osm or stale:
         with Step(status, "osm") as s:
             geo = osm.fetch()
+            geo["fetched"] = today.isoformat()
             save_json(OSM, geo)
             s.info = dict(features=len(geo["features"]))
     zones = None

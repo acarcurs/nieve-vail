@@ -2,10 +2,11 @@ name: Actualizar datos
 
 on:
   schedule:
-    - cron: "23 */3 * * *"        # cada 3 horas (UTC)
+    - cron: "17,47 * * * *"       # cada 30 min: GitHub se salta corridas, así que se intenta seguido
+                                  # y solo se guarda si hubo cambios reales (o pasaron 3 h)
   push:
     branches: [main]
-    paths: ["pipeline/**", "!pipeline/train.py", ".github/workflows/update.yml"]
+    paths: ["pipeline/**", "!pipeline/train.py", ".github/workflows/update.yml", "data/insights.json"]
   workflow_dispatch:
     inputs:
       osm:
@@ -30,6 +31,8 @@ jobs:
   update:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    outputs:
+      changed: ${{ steps.save.outputs.changed }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -48,9 +51,15 @@ jobs:
           if [ -n "$SAT_BACKFILL" ]; then ARGS="$ARGS --sat-backfill $SAT_BACKFILL"; fi
           python pipeline/update.py $ARGS
       - name: Guardar datos
+        id: save
         run: |
           git config user.name "nieve-vail-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! python pipeline/changed.py; then
+            git checkout -- data && git clean -fdq data
+            echo "changed=false" >> "$GITHUB_OUTPUT"; echo "Sin cambios que valga la pena guardar"; exit 0
+          fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
           git add data
           if git diff --cached --quiet; then echo "Sin cambios"; exit 0; fi
           git commit -q -m "datos: $(TZ=America/Denver date '+%Y-%m-%d %H:%M') MT"
@@ -63,4 +72,5 @@ jobs:
 
   deploy:
     needs: update
+    if: needs.update.outputs.changed == 'true'
     uses: ./.github/workflows/pages.yml
