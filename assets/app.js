@@ -1,6 +1,6 @@
 "use strict";
 /* ---------- utilities ---------- */
-const $ = (s, r = document) => r.querySelector(s);
+const $ = (s, r = document) => r.querySelector(s) || document.createElement("div");
 const MES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 const DIA = ["dom","lun","mar","mié","jue","vie","sáb"];
 const d2n = s => Math.round(Date.UTC(+s.slice(0,4), +s.slice(5,7)-1, +s.slice(8,10)) / 864e5);
@@ -47,7 +47,7 @@ const pct = p => (p < 0.005 ? "<1" : p > 0.995 ? ">99" : Math.round(p * 100)) + 
 
 /* ---------- state ---------- */
 let S = null, L = null, M = null;   // static, live, model results
-let INS = null, SAT = null, CM = null, MAPST = null, OSMGEO = null, STATUS = null;   // insights, satellite, trained Cumbre, map status
+let INS = null, SAT = null, CM = null, MAPST = null, OSMGEO = null, STATUS = null;   // insights, satellite, trained forecast model, map status
 let selTarget = null, cmpSeason = "2025";
 
 /* ---------- model ---------- */
@@ -254,9 +254,16 @@ function barChart(host, cfg){
 }
 
 /* ---------- views ---------- */
+function ago(iso){
+  if (!iso) return "";
+  const m = Math.round((Date.now() - new Date(iso)) / 60000);
+  if (m < 2) return "hace un momento";
+  if (m < 60) return "hace " + m + " min";
+  if (m < 24 * 60) return "hace " + Math.round(m / 60) + " h";
+  return "el " + new Date(iso).toLocaleString("es-MX", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+}
 function renderHeader(){
-  const g = L.generated_at ? new Date(L.generated_at) : null;
-  $("#updated").textContent = g ? "Actualizado " + g.toLocaleString("es-MX", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) + (L.live_vail ? " · reporte de Vail al momento" : "") : "";
+  $("#updated").textContent = L.generated_at ? "Actualizado " + ago(L.generated_at) : "";
 }
 function renderHoy(){
   const T = L.terrain || {};
@@ -283,7 +290,6 @@ function renderHoy(){
   renderNow();
   renderNews();
   renderAnalogs();
-  renderHowto();
 }
 function updateProb(){
   const p = M.open ? 1 : M.at(selTarget);
@@ -294,15 +300,15 @@ function updateProb(){
   } else {
     const parts = [];
     if (M.med) parts.push("Fecha más probable: " + fmtD(M.med));
-    if (M.p10 && M.p90) parts.push("80% de probabilidad entre el " + fmtD(M.p10) + " y el " + fmtD(M.p90));
-    $("#p-sub").textContent = parts.join(". ") + ".";
+    if (M.p10 && M.p90) parts.push("casi seguro entre el " + fmtD(M.p10) + " y el " + fmtD(M.p90));
+    $("#p-sub").textContent = parts.join(", ") + ".";
   }
   // chart
   const end = d2n((M.syear + 1) + "-02-28");
   const prob = M.res.filter(r => r.d <= end).map(r => [r.d, r.p * 100]);
   const clim = M.clim.filter(r => r.d <= end).map(r => [r.d, r.p * 100]);
   const A = css("--accent"), G = css("--muted");
-  legend($("#lg-prob"), [{ n: "Este año (modelo)", c: A }, { n: "Histórico 2002–2025", c: G }]);
+  legend($("#lg-prob"), [{ n: "Este año", c: A }, { n: "Promedio histórico", c: G }]);
   lineChart($("#ch-prob"), {
     x: [M.t0, end], y: [0, 100], yTicks: [0, 25, 50, 75, 100], yFmt: v => v + "%", height: 200, aria: "Probabilidad acumulada de apertura por fecha",
     series: [{ pts: clim, c: G, w: 1.5 }, { pts: prob, c: A, area: true }],
@@ -310,44 +316,35 @@ function updateProb(){
     marks: [{ x: selTarget, y: (M.open ? 1 : M.at(selTarget)) * 100, c: A, label: pct(M.open ? 1 : M.at(selTarget)), dx: selTarget > (M.t0 + end) / 2 ? -8 : 8, anchor: selTarget > (M.t0 + end) / 2 ? "end" : "start" }],
     tip: { xs: prob.map(p => p[0]).filter((_, i) => i % 1 === 0), rows: (x, Y) => { const a = prob.find(p => p[0] === x), b = clim.find(p => p[0] === x); return { title: fmtDL(x), rows: [{ n: "Este año", v: pct(a[1] / 100), c: A, py: Y(a[1]) }, { n: "Histórico", v: pct(b[1] / 100), c: G, py: Y(b[1]) }] }; } }
   });
-  $("#p-note").textContent = "Probabilidad de que algún Back Bowl abra en o antes de cada fecha. Se recalcula con cada actualización de nieve, pronóstico y noticias.";
 }
 function renderDeficit(){
   const need = M.need50, need80 = M.need80, cur = M.swe0, slr = S.model.slr;
   const defSwe = Math.max(0, need - cur), def80 = Math.max(0, need80 - cur);
   const [v, u] = lenParts(defSwe * slr);
   $("#def-big").replaceChildren("≈ " + v, el("span", { class: "u" }, u));
-  $("#def-sub").textContent = M.open ? "Ya abrieron; referencia de cuánta nieve hacía falta." :
-    "de nieve nueva (" + len(defSwe, true) + " de agua) para que la probabilidad de abrir en una semana llegue a 50%. Para 80%: ≈ " + len(def80 * slr) + ".";
+  $("#def-sub").textContent = M.open ? "Ya abrieron." :
+    "de nieve nueva para tener 50% de probabilidad de que abran en una semana (para 80%: ≈ " + len(def80 * slr) + ").";
   const max = Math.max(need80 * 1.15, cur * 1.1, 7);
   const m = $("#meter");
   m.replaceChildren(
     el("div", { class: "fill", style: "width:" + clamp(cur / max * 100, 0.8, 100) + "%" }),
     el("div", { class: "tick", style: "left:" + (need / max * 100) + "%" }, el("em", null, "50% · " + len(need, true))),
     el("div", { class: "tick b", style: "left:" + (need80 / max * 100) + "%" }, el("em", null, "80% · " + len(need80, true))),
-    el("div", { class: "now", style: "left:0" }, "Hoy: " + len(cur, true) + " de agua en la nieve")
+    el("div", { class: "now", style: "left:0" }, "Hoy: " + len(cur, true) + " de agua")
   );
   const cdays = ((L.cumbre || {}).days || []);
-  if (cdays.length && !M.open){ const t15 = cumbreTotals(cdays); $("#def-sub").textContent += " El pronóstico Cumbre trae ≈ " + len(t15.m) + " en los próximos " + cdays.length + " días (" + lenRange(t15.lo, t15.hi) + ")."; }
-  const tot = (L.report || {}).season_total;
-  const ref = S.model.season_total_at_open.map(r => r.season + ": " + len(r.inches)).join(" · ");
-  $("#def-ref").textContent = "Referencia de Vail: los Back Bowls abrieron con " + ref + " de nevada acumulada en la temporada" + (tot != null ? "; hoy van " + len(tot) + "." : ".") +
-    " El agua en la nieve se mide en la estación SNOTEL de Vail Mountain; 1 de agua ≈ " + slr + " de nieve reportada por Vail.";
+  if (cdays.length && !M.open){ const t15 = cumbreTotals(cdays); $("#def-sub").textContent += " Claude pronostica ≈ " + len(t15.m) + " en " + cdays.length + " días."; }
 }
 function renderNow(){
-  const R = L.report || {}, T = L.terrain || {}, sn = M.medRow;
-  const pctMed = sn.med ? Math.round(sn.swe / sn.med * 100) : null;
+  const R = L.report || {}, T = L.terrain || {};
+  const lf = liftsLabel();
   const tiles = [
-    [len(R.h24), "Nieve 24 h"], [len(R.h48), "Nieve 48 h"], [len(R.d7), "Nieve 7 días"],
-    [len(R.season_total), "Acumulada temporada"], [len(R.base), "Base (con nieve artificial)"],
-    liftsLabel().slice(0, 2), [(T.trails_open ?? "–") + "/" + (T.trails_total ?? "–"), "Pistas abiertas"],
-    [len(sn.swe, true), "Agua en la nieve (SNOTEL)" + (pctMed != null ? " · " + pctMed + "% de lo normal" : "")],
-    [len(sn.depth), "Profundidad natural (SNOTEL)"],
+    [len(R.h24), "Nieve 24 h"], [len(R.d7), "Nieve 7 días"], [len(R.base), "Base"],
+    [len(R.season_total), "Acumulada"], [(T.trails_open ?? "–") + "/" + (T.trails_total ?? "–"), "Pistas abiertas"],
+    [lf[0], lf[1].replace(" abiertas hoy", "").replace("Telesillas (cerradas por horario)", "Telesillas · de noche")],
   ];
-  const cd = ((L.cumbre || {}).days || []);
-  if (cd.length) for (const n of [5, 10, 16]) tiles.push([len(cumbreTotals(cd.slice(0, n)).m), "Pronóstico " + n + " días"]);
-  $("#now-kv").replaceChildren(...tiles.map(([b, s]) => el("div", null, el("b", null, b), el("span", null, s))));
-  $("#now-src").textContent = "Reporte de Vail: " + vailUpd(R.updated_text) + ". SNOTEL Vail Mountain (3,139 m): " + fmtD(d2n(sn.date)) + "." + (cd.length ? " Pronóstico: Cumbre, parte alta." : "");
+  $("#now-kv").replaceChildren(...tiles.map(([b, t]) => el("div", null, el("b", null, b), el("span", null, t))));
+  $("#now-src").textContent = "Reporte de Vail: " + vailUpd(R.updated_text) + ".";
 }
 function mergeInsights(){
   const I = INS || {};
@@ -372,12 +369,11 @@ function renderNews(){
   const col = sig >= 1 ? css("--good") : sig < 0 ? css("--crit") : css("--muted");
   const icon = sig > 0 ? "▲" : sig < 0 ? "▼" : "●";
   $("#news").replaceChildren(
-    el("p", null, el("span", { class: "sig", style: "border-color:" + col }, el("span", { style: "color:" + col }, icon), lab + (N.announced_date ? " · anuncio para el " + fmtD(d2n(N.announced_date)) : "")), " ", el("span", { class: "tiny muted" }, N.checked ? "revisado " + fmtD(d2n(N.checked)) : "")),
-    N.summary ? el("p", { class: "small" }, N.summary) : null,
-    el("ul", { class: "list" }, ...(N.items || []).map(it => el("li", null, el("div", { class: "l" }, el("a", { href: it.url, target: "_blank", rel: "noopener" }, it.title), el("div", { class: "tiny muted" }, (it.source || "") + (it.date ? " · " + fmtD(d2n(it.date)) : "")))))),
-    D && D.headline ? el("p", { class: "small" }, "Discusión del día: ", el("a", { href: D.url, target: "_blank", rel: "noopener" }, D.headline), el("span", { class: "muted" }, " · " + (D.source || "OpenSnow") + (D.date ? ", " + fmtD(d2n(D.date)) : ""))) : null,
-    el("p", { class: "tiny muted" }, "Las noticias mueven la probabilidad de los próximos 10 días: un anuncio oficial con fecha la sube a 95% para ese día.")
-  );
+    el("div", { class: "card" },
+      el("p", { style: "margin:0 0 6px" }, el("span", { class: "sig", style: "border-color:" + col }, el("span", { style: "color:" + col }, icon), lab + (N.announced_date ? " · abren el " + fmtD(d2n(N.announced_date)) : ""))),
+      N.summary ? el("p", { class: "small ink2", style: "margin:0 0 4px" }, N.summary) : null,
+      el("ul", { class: "list" }, ...(N.items || []).slice(0, 3).map(it => el("li", null, el("div", { class: "l small" }, el("a", { href: it.url, target: "_blank", rel: "noopener" }, it.title), el("div", { class: "tiny muted" }, (it.source || "") + (it.date ? " · " + fmtD(d2n(it.date)) : "")))))),
+      D && D.headline && !(N.items || []).slice(0, 3).some(it => /opensnow/i.test(it.source || "")) ? el("p", { class: "small", style: "margin:8px 0 0" }, el("b", null, "OpenSnow: "), el("a", { href: D.url, target: "_blank", rel: "noopener" }, D.headline)) : null));
 }
 function renderAnalogs(){
   const k = md(M.t0);
@@ -387,34 +383,11 @@ function renderAnalogs(){
     const sw = (idx >= 0 && idx < s.swe.length) ? s.swe[idx] : null;
     return { o, sw, gap: d2n(o.date) - d2n(yr + "-" + k) };
   }).filter(r => r.sw != null).sort((a, b) => Math.abs(a.sw - M.swe0) - Math.abs(b.sw - M.swe0)).slice(0, 4);
-  $("#analog-intro").textContent = "Temporadas con agua en la nieve parecida a hoy (" + len(M.swe0, true) + ") el " + fmtD(M.t0) + ", y cuándo abrieron:";
   $("#analogs").replaceChildren(...rows.map(r => el("li", null,
     el("div", { class: "l" }, el("b", null, r.o.season + "-" + String(r.o.season + 1).slice(2)), el("div", { class: "tiny muted" }, len(r.sw, true) + " de agua ese día · " + r.o.what)),
     el("div", { class: "r" }, el("b", null, fmtD(d2n(r.o.date))), el("div", { class: "tiny muted" }, r.gap > 0 ? r.gap + " días después" : "ya estaban abiertos")))));
 }
-function renderHowto(){
-  const m = S.model, b = m.brier;
-  const host = $("#howto");
-  host.replaceChildren(
-    el("details", null, el("summary", null, "El modelo en 4 pasos"),
-      el("p", { class: "small ink2" }, "1. Junté la fecha en que abrieron los Back Bowls en " + m.n_seasons + " temporadas (2002-03 a 2025-26) de comunicados de Vail Resorts y prensa local, y el agua acumulada en la nieve (SWE) de la estación SNOTEL de Vail Mountain cada día."),
-      el("p", { class: "small ink2" }, "2. Ajusté un modelo de riesgo diario: la probabilidad de que abran cualquier día sube con el agua en la nieve. Con 4.9 in de agua hay ~9% por día; con 6 in, ~27%."),
-      el("p", { class: "small ink2" }, "3. Simulo 4,000 temporadas posibles desde hoy: los primeros 16 días usan la distribución del pronóstico Cumbre y después la secuencia real de nevadas de alguna de las 22 temporadas guardadas. También sorteo la incertidumbre del propio modelo."),
-      el("p", { class: "small ink2" }, "4. Las noticias ajustan los próximos 10 días: un anuncio oficial con fecha fija esa fecha en 95%; reportes de trabajos de patrulla la suben; avisos de retraso la bajan.")),
-    el("details", null, el("summary", null, "Qué tan bien funciona"),
-      el("p", { class: "small ink2" }, "Probé cada temporada dejándola fuera del ajuste. Con la nieve real conocida, el modelo ubica la fecha con un error mediano de " + m.perfect_knowledge.median_abs_err_days + " días (promedio " + m.perfect_knowledge.mae_days + ")."),
-      el("p", { class: "small ink2" }, "Como pronóstico sin saber la nieve futura, acierta más que el promedio histórico (puntaje Brier, menor es mejor): " + b.map(x => "desde el " + x.asof + " para el " + x.target + ": " + x.model.toFixed(2) + " vs " + x.clim.toFixed(2)).join("; ") + "."),
-      el("p", { class: "small ink2" }, "Límite conocido: en años muy secos (2011-12 y 2025-26) Vail abrió 3 a 5 semanas después de lo que la nieve sola sugería, por nieve débil y laderas al sur derretidas. Este año arrancó seco, así que toma las fechas tempranas con cautela.")),
-    el("details", null, el("summary", null, "Fuentes"),
-      el("ul", { class: "small ink2", style: "padding-left:18px;margin:6px 0" },
-        el("li", null, "Estado de pistas, reporte y pronóstico de Vail: ", el("a", { href: "https://github.com/jacobschulman/ski-run-scraper", target: "_blank", rel: "noopener" }, "ski-run-scraper"), " (copia pública diaria de vail.com)."),
-        el("li", null, "Nieve: ", el("a", { href: S.links.snotel, target: "_blank", rel: "noopener" }, "NRCS SNOTEL #842 Vail Mountain"), "."),
-        el("li", null, "Pronóstico: Vail, NWS, 9 modelos y 3 ensambles vía ", el("a", { href: "https://open-meteo.com", target: "_blank", rel: "noopener" }, "Open-Meteo"), " (CC BY 4.0)."),
-        el("li", null, "Satélite: Sentinel-2 (Copernicus, vía Element 84). Mapa: OpenStreetMap, AWS Terrain Tiles."),
-        el("li", null, "Fechas históricas: comunicados de Vail Resorts, Vail Daily, RealVail, SnowBrains."))),
-  );
-}
-const CARD = ["N","NE","E","SE","S","SO","O","NO"];
+const CARD = ["del norte", "del noreste", "del este", "del sureste", "del sur", "del suroeste", "del oeste", "del noroeste"];
 const card = d => d == null ? "–" : CARD[Math.round(d / 45) % 8];
 function cumbreTotals(days){
   const m = days.reduce((a, d) => a + d.mean, 0);
@@ -447,7 +420,7 @@ function cumbreStory(days){
   return items;
 }
 const SRC_ORDER = ["Vail", "NWS", "ECMWF", "AIFS", "GFS", "HRRR", "NBM", "ICON", "GEM", "UKMO", "JMA"];
-const SRC_LABEL = { Vail: "Vail", NWS: "NWS", ECMWF: "ECMWF", AIFS: "AIFS", GFS: "GFS", HRRR: "HRRR", NBM: "NBM", ICON: "ICON", GEM: "GEM", UKMO: "UKMO", JMA: "JMA", Cumbre: "Cumbre" };
+const SRC_LABEL = { Vail: "Vail", NWS: "NWS", ECMWF: "ECMWF", AIFS: "AIFS", GFS: "GFS", HRRR: "HRRR", NBM: "NBM", ICON: "ICON", GEM: "GEM", UKMO: "UKMO", JMA: "JMA", Cumbre: "Claude" };
 const SRC_DESC = { Vail: "pronóstico de Vail para la cima", NWS: "Servicio Meteorológico de EE. UU.", ECMWF: "modelo europeo", AIFS: "inteligencia artificial de ECMWF", GFS: "modelo global de EE. UU.", HRRR: "alta resolución de EE. UU. (2 días)", NBM: "mezcla oficial de EE. UU.", ICON: "modelo alemán", GEM: "modelo canadiense", UKMO: "modelo británico", JMA: "modelo japonés" };
 function heatCell(v, maxV){
   if (v == null) return el("td", { class: "c", style: "color:var(--muted)" }, "·");
@@ -455,114 +428,80 @@ function heatCell(v, maxV){
   const a = Math.min(0.75, 0.08 + v / maxV * 0.9);
   return el("td", { class: "c", style: "background:color-mix(in srgb, var(--accent) " + Math.round(a * 100) + "%, transparent)" }, UNITS === "metric" ? String(Math.round(v * 2.54)) : (Math.round(v * 10) / 10).toLocaleString("es-MX"));
 }
+function dayIcon(kind){
+  const P = { snow: ["M12 3v18", "M4.2 7.5l15.6 9", "M4.2 16.5l15.6-9", "M9.5 4.5 12 7l2.5-2.5", "M9.5 19.5 12 17l2.5 2.5"],
+    cloud: ["M6.5 17.5a4 4 0 0 1 .3-8 5.5 5.5 0 0 1 10.6 1.4 3.3 3.3 0 0 1 .2 6.6Z"],
+    sun: ["M12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z", "M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"] };
+  return sv("svg", { viewBox: "0 0 24 24", class: "ic " + kind, "aria-hidden": "true", fill: "none", stroke: "currentColor", "stroke-width": "1.8", "stroke-linecap": "round", "stroke-linejoin": "round" },
+    ...P[kind].map(d => sv("path", { d })));
+}
 function renderPronostico(){
   const C = L.cumbre || { days: [] };
   const days = C.days || [];
   const A = css("--accent");
-  const nsrc = Object.keys(C.sources || {}).length;
-  const nens = Object.values(C.ensembles || {}).reduce((a, e) => a + (e.members || 0), 0);
-  $("#fc-intro").textContent = "Nuestro motor estilo PEAKS para la parte alta de Vail (3,390 m): junta " + nsrc + " fuentes, corrige cada una con lo que de verdad nevó en temporadas pasadas y usa " + nens + " escenarios de ensambles para el rango.";
-  const tiles = [[5, "Próximos 5 días"], [10, "10 días"], [days.length, days.length + " días"]].map(([n, lab]) => {
+  $("#fc-tot").replaceChildren(...[[5, "5 días"], [10, "10 días"], [days.length, days.length + " días"]].map(([n, lab]) => {
     const t = cumbreTotals(days.slice(0, n));
     return el("div", null, el("b", null, len(t.m)), el("span", null, lab), el("span", null, lenRange(t.lo, t.hi)));
-  });
-  $("#fc-tot").replaceChildren(...tiles);
-  $("#fc-story").replaceChildren(...cumbreStory(days).map(([a, b]) => el("li", null, el("div", { class: "l" }, el("b", null, a), el("div", { class: "small ink2" }, b)))));
-  legend($("#lg-fc"), [{ n: "Pronóstico (más intenso = más confianza)", c: A, box: true }, { n: "Solo ensambles (días 11–16)", c: "color-mix(in srgb, " + A + " " + Math.round((+css("--prob-op") || 0.35) * 100) + "%, transparent)", box: true }, { n: "Escenario alto (90%)", c: "color-mix(in srgb, " + A + " " + Math.round((+css("--wash-op") || 0.16) * 100) + "%, transparent)", box: true }]);
+  }));
   const cv = v => v == null ? null : (UNITS === "metric" ? v * 2.54 : v);
   barChart($("#ch-fc"), {
-    aria: "Nieve pronosticada por día, " + days.length + " días", minMax: UNITS === "metric" ? 10 : 4, sub2: true, sub2Label: "%", wash: true, yUnit: UNITS === "metric" ? "cm" : "in", height: 250,
+    aria: "Nieve pronosticada por día, " + days.length + " días", minMax: UNITS === "metric" ? 10 : 4, sub2: true, sub2Label: "%", wash: true, yUnit: UNITS === "metric" ? "cm" : "in", height: 230,
     bars: days.map(d => { const n = d2n(d.date); const op = d.kind !== "det" ? (+css("--prob-op") || 0.35) : d.conf === "alta" ? 1 : d.conf === "media" ? 0.72 : 0.55;
-      const srcRows = SRC_ORDER.filter(k => d.srcs && d.srcs[k]).map(k => { const v = d.srcs[k]; return [SRC_LABEL[k], len(v[0], true) + (Math.abs(v[1] - v[0]) > 0.05 ? " → " + len(v[1], true) : "")]; });
       return { label: DIA2[n2date(n).getUTCDay()], sub: String(n2date(n).getUTCDate()), sub2: String(Math.round(d.p * 100)), v: cv(d.mean), lo: cv(d.lo), hi: cv(d.hi), op,
         title: fmtDL(n) + (d.k === 0 ? " (hoy)" : ""),
-        tip: [["Cumbre", len(d.mean, true)], ["Rango 10–90%", lenRange(d.lo, d.hi)], ["Prob. de nevada", Math.round(d.p * 100) + "%"], ["Confianza", d.conf],
-          ...(d.ens ? [["Ensambles (" + d.ens.n + ")", len(d.ens.mean, true)]] : []), ...srcRows.slice(0, 7),
-          ...(d.extra > 0.05 ? [["+ ligera no anunciada", len(d.extra, true)]] : []),
-          ...(d.tmin != null ? [["Temp. cima", tempC(d.tmin) + " a " + tempC(d.tmax)]] : []),
-          ...(d.twet != null && d.twet > 0.5 ? [["Ojo", "puede caer como lluvia"]] : []),
-          ...(d.wdir != null ? [["Viento al nevar", card(d.wdir)]] : [])] }; }),
+        tip: [["Claude", len(d.mean, true)], ["Rango", lenRange(d.lo, d.hi)], ["Prob. de nevada", Math.round(d.p * 100) + "%"], ...(d.tmin != null ? [["Temp. cima", tempC(d.tmin) + " a " + tempC(d.tmax)]] : [])] }; }),
     fmt: (v, axis) => axis ? String(v) : (v < 0.05 ? "0" : UNITS === "metric" ? String(Math.round(v)) : (v < 10 ? (Math.round(v * 10) / 10).toLocaleString("es-MX") : String(Math.round(v))))
   });
-  $("#fc-note").textContent = "Nieve nueva en la parte alta, en " + (UNITS === "metric" ? "cm" : "pulgadas") + ". La fila % es la probabilidad de nevada del día. Toca una barra para ver cada fuente. Calculado " + (C.issued ? new Date(C.issued).toLocaleString("es-MX", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "–");
-  // comparison table
-  const srcNames = SRC_ORDER.filter(k => C.sources && C.sources[k]);
-  const maxV = Math.max(4, ...days.map(d => d.hi));
-  $("#t-cmp").replaceChildren(el("tr", null, el("td", { class: "src" }, UNITS === "metric" ? "cm" : "in"), ...days.map(d => el("th", null, DIA2[n2date(d2n(d.date)).getUTCDay()] + " " + n2date(d2n(d.date)).getUTCDate()))),
-    el("tr", { class: "cum" }, el("td", { class: "src" }, "Cumbre"), ...days.map(d => heatCell(d.mean, maxV))),
-    ...srcNames.map(nm => { const ser = C.sources[nm] || {}; return el("tr", null, el("td", { class: "src", title: SRC_DESC[nm] || "" }, SRC_LABEL[nm] || nm), ...days.map(d => heatCell(ser[d.date] == null || (nm === "Vail" && d.k === 0) ? null : ser[d.date], maxV))); }),
-    el("tr", null, el("td", { class: "src" }, "Ensambles %"), ...days.map(d => el("td", { class: "c", style: d.ens ? "background:color-mix(in srgb, var(--accent-2) " + Math.round(Math.min(0.6, d.ens.p_any * 0.6) * 100) + "%, transparent)" : "color:var(--muted)" }, d.ens ? String(Math.round(d.ens.p_any * 100)) : "·"))));
-  renderLearning(C);
-  // Vail's own table
-  const locs = ((L.report || {}).forecast || []);
-  const base = locs.find(l => l.name === "Vail base"), cima = locs.find(l => l.name === "Vail cima");
-  const tv = $("#t-vail");
-  tv.replaceChildren(el("tr", null, el("th", null, "Día"), el("th", null, "Cielo (cima)"), el("th", { class: "n" }, "Base"), el("th", { class: "n" }, "Cima"), el("th", { class: "n" }, "Nieve día · noche")));
-  (cima || base || { days: [] }).days.forEach((d, i) => {
-    const b = base ? base.days[i] : null; const nd = d2n(d.date);
-    tv.append(el("tr", null, el("td", { style: "white-space:nowrap" }, DIA[n2date(nd).getUTCDay()] + " " + n2date(nd).getUTCDate()), el("td", { class: "small" }, sky(d.desc)),
-      el("td", { class: "n", style: "white-space:nowrap" }, b ? temp(b.hi) + "/" + temp(b.lo) : "–"), el("td", { class: "n", style: "white-space:nowrap" }, temp(d.hi) + "/" + temp(d.lo)),
-      el("td", { class: "n", style: "white-space:nowrap" }, len(d.snow_day) + " · " + len(d.snow_night))));
-  });
-  $("#vail-fc-src").textContent = "Publicado por Vail en su reporte de nieve (" + vailUpd((L.report || {}).updated_text) + ").";
+  legend($("#lg-fc"), [{ n: "Pronóstico", c: A, box: true }, { n: "Lejano (aprox.)", c: "color-mix(in srgb, " + A + " " + Math.round((+css("--prob-op") || 0.35) * 100) + "%, transparent)", box: true }, { n: "Escenario alto", c: "color-mix(in srgb, " + A + " " + Math.round((+css("--wash-op") || 0.16) * 100) + "%, transparent)", box: true }]);
+  $("#fc-story").replaceChildren(...cumbreStory(days).map(([a, b]) => el("li", null, el("div", { class: "l" }, el("b", null, a), el("div", { class: "small ink2" }, b)))));
+  // day by day
+  $("#fc-days").replaceChildren(...days.map(d => {
+    const n = d2n(d.date), dt = n2date(n);
+    const name = d.k === 0 ? "Hoy" : d.k === 1 ? "Mañana" : DIA[dt.getUTCDay()].replace(/^./, c => c.toUpperCase());
+    const kind = d.mean >= 1 || d.p >= 0.5 ? "snow" : (d.p >= 0.15 || d.mean >= 0.3) ? "cloud" : "sun";
+    const dry = d.mean < 0.1 && d.hi < 0.4;
+    const srcs = SRC_ORDER.filter(k => d.srcs && d.srcs[k]).map(k => el("span", null, SRC_LABEL[k] + " ", el("b", null, len(d.srcs[k][0], true))));
+    const more = [];
+    if (srcs.length) more.push(el("div", null, "Cada fuente:"), el("div", { class: "srcs" }, ...srcs));
+    if (d.twet != null && d.twet > 0.5) more.push(el("p", { class: "warn" }, "Puede caer como lluvia"));
+    if (d.ens) more.push(el("p", { style: "margin:8px 0 0" }, "Escenarios con nieve: " + Math.round(d.ens.p_any * 100) + "% · con " + (UNITS === "metric" ? "15 cm" : "6 in") + " o más: " + Math.round(d.ens.p_6 * 100) + "%"));
+    if (d.wdir != null && d.mean >= 0.5) more.push(el("p", { style: "margin:4px 0 0" }, "Viento al nevar: " + card(d.wdir)));
+    if (d.kind !== "det") more.push(el("p", { style: "margin:4px 0 0" }, "Día lejano: cantidad aproximada."));
+    return el("details", { class: "day" + (d.k === 0 ? " today" : "") },
+      el("summary", null,
+        el("div", { class: "dn" }, name, el("small", null, dt.getUTCDate() + " " + MES[dt.getUTCMonth()])),
+        dayIcon(kind),
+        el("div", { class: "amt" }, dry ? "Seco" : len(d.mean), el("small", null, dry ? "sin nieve" : lenRange(d.lo, d.hi))),
+        el("div", { class: "pr" }, el("b", null, Math.round(d.p * 100) + "%"), d.tmin != null ? tempC(d.tmin) + " / " + tempC(d.tmax) : "")),
+      el("div", { class: "more" }, ...more));
+  }));
+  // accuracy
+  const T = CM, b1 = ((T || {}).blend || {})["1"];
+  if (b1 && b1.mae != null){
+    const full = Object.entries(b1.singles || {}).filter(([, v]) => v.n >= 0.8 * (b1.n || 0)).sort((a, b) => a[1].mae - b[1].mae);
+    const best = full[0], gain = best ? 1 - best[1].blend / best[1].mae : null;
+    $("#fc-acc").replaceChildren(el("b", null, "Qué tan bien le atina Claude"), el("br"),
+      "Para mañana se equivoca en promedio " + len(b1.mae, true) + (gain > 0.005 ? ", " + Math.round(gain * 100) + "% menos que el mejor modelo por sí solo (" + best[0] + ")" : "") + ". Aprendió de " + T.n_days + " días de temporadas pasadas y se reentrena cada lunes.");
+    $("#fc-acc").style.display = "";
+  } else $("#fc-acc").style.display = "none";
   // NWS
   const N = L.nws || {}, NE = L.nws_es;
-  let auto = false;
   const periods = (NE && NE.periods && NE.periods.length) ? NE.periods : (N.periods || []).map(p => {
-    const t = window.NwsEs ? NwsEs.translate(p.text) : null; if (t) auto = true;
+    const t = window.NwsEs ? NwsEs.translate(p.text) : null;
     return { name: window.NwsEs ? NwsEs.periodName(p.name) : p.name, text: t || p.text };
   });
-  $("#nws-meta").replaceChildren((N.office ? "NWS " + N.office : "NWS") + " · punto a " + (N.elevation_m ? Math.round(N.elevation_m).toLocaleString("es-MX") + " m" : "3,390 m") + (N.issued ? " · emitido " + new Date(N.issued).toLocaleString("es-MX", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "") + (NE ? "" : auto ? " · traducido automáticamente" : " · en inglés") + " · ", el("a", { href: N.url || "https://forecast.weather.gov", target: "_blank", rel: "noopener" }, "weather.gov"));
-  $("#nws").replaceChildren(...periods.map(p => el("li", null, el("div", { class: "l" }, el("b", null, p.name), el("div", { class: "small ink2" }, p.text)))));
-  // AFD
+  $("#nws").replaceChildren(...periods.slice(0, 8).map(p => el("li", null, el("div", { class: "l" }, el("b", null, p.name), el("div", { class: "small ink2" }, p.text)))));
+  $("#nws-meta").replaceChildren("NWS Grand Junction" + (N.issued ? " · " + ago(N.issued) : "") + " · ", el("a", { href: N.url || "https://forecast.weather.gov", target: "_blank", rel: "noopener" }, "weather.gov"));
   const AF = L.afd || {}, AE = L.afd_es;
   if (AE && AE.bullets && AE.bullets.length) $("#afd").replaceChildren(...AE.bullets.map(x => el("li", null, el("div", { class: "l small" }, x))));
-  else { const sec = AF.sections || {}; const keys = ["Key Messages", "Short Term", "Long Term", "Synopsis", "Discussion"].filter(k => sec[k]);
-    $("#afd").replaceChildren(...keys.slice(0, 3).map(k => el("li", null, el("div", { class: "l" }, el("b", null, k), el("div", { class: "small ink2", style: "white-space:pre-line" }, sec[k].slice(0, 1200) + (sec[k].length > 1200 ? "…" : "")))))); }
-  $("#afd-meta").replaceChildren("NWS Grand Junction" + (AF.issued ? " · emitida " + new Date(AF.issued).toLocaleString("es-MX", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "") + (AE ? " · resumen en español" : " · en inglés") + " · ", el("a", { href: AF.url || "https://forecast.weather.gov", target: "_blank", rel: "noopener" }, "texto completo"));
-  // ensembles table
-  const te = $("#t-ens");
-  te.replaceChildren(el("tr", null, el("th", null, "Día"), el("th", { class: "n" }, "Nieve"), el("th", { class: "n" }, "≥ " + (UNITS === "metric" ? "2.5 cm" : "1 in")), el("th", { class: "n" }, "≥ " + (UNITS === "metric" ? "15 cm" : "6 in")), el("th", { class: "n" }, "Promedio")),
-    ...days.filter(d => d.ens).map(d => el("tr", null, el("td", { style: "white-space:nowrap" }, DIA[n2date(d2n(d.date)).getUTCDay()] + " " + n2date(d2n(d.date)).getUTCDate()),
-      el("td", { class: "n" }, Math.round(d.ens.p_any * 100) + "%"), el("td", { class: "n" }, Math.round(d.ens.p_1 * 100) + "%"), el("td", { class: "n" }, Math.round(d.ens.p_6 * 100) + "%"), el("td", { class: "n" }, len(d.ens.mean, true)))));
-  const ensNames = Object.entries(C.ensembles || {}).map(([k, e]) => k + " (" + e.members + ")").join(", ");
-  $("#ens-meta").textContent = "Porcentaje de escenarios con nieve en la parte alta. " + ensNames + ", vía Open-Meteo. Ya incluyen la corrección de Cumbre.";
+  else { const sec = AF.sections || {}; const k = ["Key Messages", "Short Term", "Synopsis"].find(x => sec[x]);
+    $("#afd").replaceChildren(k ? el("li", null, el("div", { class: "l small ink2", style: "white-space:pre-line" }, sec[k].slice(0, 900) + (sec[k].length > 900 ? "…" : ""))) : el("li", null, "–")); }
+  $("#afd-meta").replaceChildren("NWS Grand Junction" + (AF.issued ? " · " + ago(AF.issued) : "") + (AE ? "" : " · en inglés") + " · ", el("a", { href: AF.url || "https://forecast.weather.gov", target: "_blank", rel: "noopener" }, "texto completo"));
   const D = L.discussion;
   $("#opensnow-row").style.display = D && D.headline ? "" : "none";
   if (D && D.headline) $("#opensnow").replaceChildren(el("a", { href: D.url, target: "_blank", rel: "noopener" }, D.headline), el("span", { class: "muted" }, " · " + (D.author || "") + (D.date ? ", " + fmtD(d2n(D.date)) : "")));
 }
-function renderLearning(C){
-  const T = CM, st = C.stats || {};
-  const vOn = ((st.Vail || {}).online) || {};
-  const pct = x => Math.round(x * 100) + "%";
-  if (T && T.models){
-    const w = T.window || [];
-    const nSeas = new Set(Object.keys(T.models).length ? [] : []).size;
-    const yrs = w.length ? (n2date(d2n(w[0])).getUTCFullYear() + "–" + String(n2date(d2n(w[1])).getUTCFullYear()).slice(2)) : "";
-    $("#learn-intro").textContent = "Entrené a Cumbre con " + T.n_days + " días de nieve (" + yrs + "): comparé lo que cada modelo pronosticó de 1 a 7 días antes con lo que de verdad cayó en Vail, y aprendí cuánto corregir a cada uno y cuánto confiar en él.";
-    const b1 = (T.blend || {})["1"] || {}, b5 = (T.blend || {})["5"] || {};
-    const full1 = Object.entries(b1.singles || {}).filter(([, v]) => v.n >= 0.8 * (b1.n || 0)).sort((a, b) => a[1].mae - b[1].mae);
-    const best1 = full1.length ? full1[0][0] : b1.best;
-    const gain1 = full1.length ? 1 - full1[0][1].blend / full1[0][1].mae : b1.gain;
-    $("#learn-kv").replaceChildren(
-      el("div", null, el("b", null, b1.mae != null ? len(b1.mae, true) : "–"), el("span", null, "Error típico de Cumbre para mañana")),
-      el("div", null, el("b", null, gain1 != null ? (gain1 > 0.005 ? "−" + pct(gain1) : "≈") : "–"), el("span", null, "de error vs el mejor modelo solo" + (best1 ? " (" + best1 + ")" : ""))),
-      el("div", null, el("b", null, b5.mae != null ? len(b5.mae, true) : "–"), el("span", null, "Error típico a 5 días")));
-    const rows = Object.entries(T.models).map(([nm, ms]) => {
-      const s1 = ms["1"] || {}, s5 = ms["5"] || {};
-      const f1 = (b1.singles || {})[nm] || {};
-      return { nm, b: s1.b, e1: f1.mae != null ? f1.mae : s1.mae, c1: f1.blend, pod: s1.pod, n: s1.n };
-    }).sort((a, b) => (a.e1 ?? 9) - (b.e1 ?? 9));
-    const t = $("#t-learn");
-    t.replaceChildren(el("tr", null, el("th", null, "Fuente"), el("th", { class: "n" }, "Corrección"), el("th", { class: "n" }, "Su error"), el("th", { class: "n" }, "Cumbre"), el("th", { class: "n" }, "Ve la nieve")),
-      ...rows.map(r => el("tr", null, el("td", { title: SRC_DESC[r.nm] || "" }, SRC_LABEL[r.nm] || r.nm), el("td", { class: "n" }, r.b != null ? "×" + r.b.toFixed(2) : "–"), el("td", { class: "n" }, r.e1 != null ? len(r.e1, true) : "–"), el("td", { class: "n" }, r.c1 != null ? el("b", null, len(r.c1, true)) : "–"), el("td", { class: "n" }, r.pod != null ? pct(r.pod) : "–"))),
-      el("tr", null, el("td", null, "Vail"), el("td", { class: "n" }, vOn.b != null ? "×" + vOn.b.toFixed(2) : "–"), el("td", { class: "n" }, vOn.mae != null ? len(vOn.mae, true) : "–"), el("td", { class: "n" }, "–"), el("td", { class: "n" }, "")));
-    $("#learn-note").textContent = "Pronósticos para el día siguiente. Corrección: por cuánto multiplica Cumbre la nieve que anuncia cada fuente (×1.30 = se queda corta 30%). Su error: diferencia promedio por día de esa fuente ya corregida; Cumbre: el error de la mezcla en esos mismos días (algunos modelos solo tienen archivo desde 2025). Se mide en temporadas que el ajuste no vio. Ve la nieve: de los días con 2.5 cm o más, cuántos anticipó. Reentrenado " + (T.trained_at ? fmtD(d2n(T.trained_at.slice(0, 10))) : "–") + ".";
-  } else {
-    $("#learn-intro").textContent = "Cumbre compara cada pronóstico con la nieve que Vail reporta después. Con " + (vOn.n || 0) + " pronósticos de Vail aprendió que cuando Vail anuncia nieve cae ≈ " + (vOn.b || 1).toFixed(1) + " veces lo anunciado.";
-    $("#learn-kv").replaceChildren(); $("#t-learn").replaceChildren(); $("#learn-note").textContent = "";
-  }
-}
+
 let mapReady = false;
 function denverHour(){ try { return +new Intl.DateTimeFormat("en-US", { timeZone: "America/Denver", hour: "numeric", hour12: false }).format(new Date()) % 24; } catch (e) { return 12; } }
 function liftsLabel(){
@@ -579,17 +518,10 @@ function liftsToday(){
 function renderMapa(){
   const T = L.terrain || { areas: [], lifts: [] };
   const LT = liftsToday();
-  $("#map-sum").textContent = (T.trails_open ?? "–") + " de " + (T.trails_total ?? "–") + " pistas y " + liftsLabel()[2] + " · Back Bowls " + (T.bb_trails_open ?? 0) + "/" + (T.bb_trails_total ?? "–") + " · reporte del " + (L.terrain_date ? fmtD(d2n(L.terrain_date)) : "–") + ".";
-  legend($("#lg-map"), [{ n: "Pista abierta", c: "#35e05f" }, { n: "Cerrada", c: css("--closed") }, { n: "Telesilla abierta", c: "#ffd23f" }, { n: "Telesilla cerrada (punteada)", c: css("--ink-2") }]);
+  $("#map-sum").textContent = (T.trails_open ?? "–") + " de " + (T.trails_total ?? "–") + " pistas abiertas · " + liftsLabel()[2] + " · Back Bowls " + (T.bb_trails_open ?? 0) + "/" + (T.bb_trails_total ?? "–");
+  legend($("#lg-map"), [{ n: "Pista abierta", c: "#35e05f" }, { n: "Cerrada", c: css("--closed") }, { n: "Telesilla abierta", c: "#ffd23f" }]);
   const ov = SAT && SAT.overlay;
-  $("#map-note").textContent = "Relieve 3D real (exagerado 1.35×). Pistas y telesillas de OpenStreetMap con el estado del reporte de Vail" + (MAPST && MAPST.terrain_date ? " del " + fmtD(d2n(MAPST.terrain_date)) : "") + "." + (ov ? " Imagen de fondo: Sentinel-2 del " + fmtD(d2n(ov.date)) + ", la pasada despejada más reciente." : "") + " Toca una pista para ver su nombre.";
   renderZoneDetail();
-  const Lk = S.links;
-  $("#map-links").replaceChildren(
-    el("a", { class: "btn", href: Lk.google_earth, target: "_blank", rel: "noopener" }, "Google Earth 3D"),
-    el("a", { class: "btn", href: Lk.openskimap, target: "_blank", rel: "noopener" }, "OpenSkiMap"),
-    el("a", { class: "btn", href: Lk.vail_trailmap, target: "_blank", rel: "noopener" }, "Mapa oficial"),
-    el("a", { class: "btn", href: Lk.vail_terrain, target: "_blank", rel: "noopener" }, "Estado oficial"));
   if (mapReady){ if (window.Map3D){ Map3D.resize(); if (OSMGEO){ const st = liveMapStatus(); Map3D.update(Map3D.prepare(OSMGEO, st), ((st || {}).areas || {}).features || []); } } return; }
   const msg = $("#mapmsg");
   const fallback = err => { $("#map-layers").replaceChildren(); msg.textContent = "No pude cargar el mapa 3D (" + (err && err.message || err) + "). Te muestro el esquema."; setTimeout(() => msg.remove(), 4000); $("#map3d").replaceChildren(); renderMapaSchematic(); };
@@ -724,7 +656,7 @@ function renderSatelite(){
   const cop = d => S.links.copernicus_tpl.replaceAll("{d}", d);
   const pc = v => v == null ? "–" : Math.round(v * 100) + "%";
   if (ov){
-    $("#sat-intro").textContent = "Última pasada despejada de Sentinel-2: " + fmtDL(d2n(ov.date)) + ". Con 10 m por pixel se distingue cada pista. Norte arriba: el frente mira al pueblo y los Back Bowls son la ladera al sur de la cresta.";
+    $("#sat-intro").textContent = "Foto de Sentinel-2 del " + fmtDL(d2n(ov.date)) + " (la más reciente sin nubes). Norte arriba.";
     const img = el("img", { src: ov.true + "?v=" + ov.id, alt: "Imagen satelital de Vail del " + fmtD(d2n(ov.date)), loading: "lazy" });
     const snow = el("img", { src: ov.snow + "?v=" + ov.id, alt: "", class: "ovl", loading: "lazy" });
     const lab = (t, x, y) => el("span", { class: "satlab", style: "left:" + x + "%;top:" + y + "%" }, t);
@@ -742,9 +674,9 @@ function renderSatelite(){
       document.querySelectorAll("#sat-layers .chip").forEach((b, i) => b.setAttribute("aria-pressed", String(i === 0 ? !box.classList.contains("snowon") : box.classList.contains("snowon"))));
     } }, t)));
     $("#sat-kv").replaceChildren(
-      el("div", null, el("b", null, pc(ov.snow_bb)), el("span", null, "Back Bowls con nieve")),
-      el("div", null, el("b", null, pc(ov.snow_front)), el("span", null, "Frente con nieve")),
-      el("div", null, el("b", null, pc(ov.cloud)), el("span", null, "Nubes en la zona")));
+      el("div", null, el("b", null, pc(ov.snow_bb)), el("span", null, "Nieve en Back Bowls")),
+      el("div", null, el("b", null, pc(ov.snow_front)), el("span", null, "Nieve en el frente")),
+      el("div", null, el("b", null, pc(ov.cloud)), el("span", null, "Nubes")));
   } else {
     $("#sat-intro").textContent = "Todavía no hay una pasada despejada procesada.";
     $("#satbox").replaceChildren(); $("#sat-layers").replaceChildren(); $("#sat-kv").replaceChildren();
@@ -864,9 +796,9 @@ function renderFooter(){
   const st = (STATUS && STATUS.steps) || {};
   const bad = Object.entries(st).filter(([k, v]) => !v.ok && !v.skipped).map(([k]) => k);
   $("#foot").replaceChildren(
-    el("p", null, "Hecho para uso personal. Se actualiza solo cada 3 horas en ", el("a", { href: "https://github.com/acarcurs/nieve-vail", target: "_blank", rel: "noopener" }, "GitHub"), ". El modelo es una estimación: Vail decide la apertura según patrulla, avalanchas y operación."),
-    el("p", { class: "tiny" }, "Datos: Vail Resorts (vía ski-run-scraper), NRCS SNOTEL, NWS, modelos y ensambles de ECMWF, NOAA, DWD, ECCC, UKMO y JMA vía Open-Meteo (CC BY 4.0), © colaboradores de OpenStreetMap, relieve AWS Terrain Tiles, Sentinel-2 de Copernicus (ESA), Google News."),
-    bad.length ? el("p", { class: "tiny" }, "Fuentes con problema en la última actualización: " + bad.join(", ") + ". Se muestran sus datos anteriores.") : null);
+    el("p", null, "Uso personal. Se actualiza sola en ", el("a", { href: "https://github.com/acarcurs/nieve-vail", target: "_blank", rel: "noopener" }, "GitHub"), ". Vail decide la apertura según patrulla y avalanchas."),
+    el("p", null, "Datos: Vail Resorts, NRCS SNOTEL, NWS, Open-Meteo (CC BY 4.0), © OpenStreetMap, Copernicus Sentinel-2."),
+    ...(bad.length ? [el("p", null, "Sin actualizar ahora: " + bad.join(", ") + ".")] : []));
 }
 /* ---------- router & boot ---------- */
 const VIEWS = ["hoy", "pronostico", "mapa", "camaras", "satelite", "historial"];
@@ -875,7 +807,9 @@ const RENDER = { hoy: renderHoy, pronostico: renderPronostico, mapa: renderMapa,
 function route(){
   const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "hoy";
   for (const k of VIEWS){ $("#v-" + k).classList.toggle("on", k === v); }
-  document.querySelectorAll("nav.tabs a").forEach(a => { if (a.dataset.v === v) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+  document.querySelectorAll("nav.tabbar a").forEach(a => { if (a.dataset.v === v) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+  if (route.last && route.last !== v) window.scrollTo(0, 0);
+  route.last = v;
   if (S && L && !rendered[v]){ RENDER[v](); rendered[v] = true; }
 }
 function rerenderAll(){ for (const k of Object.keys(rendered)) delete rendered[k]; route(); }
@@ -887,7 +821,6 @@ function setUnits(u){
 $("#u-metric").onclick = () => setUnits("metric");
 $("#u-imp").onclick = () => setUnits("imperial");
 window.addEventListener("hashchange", route);
-{ const nw = $("nav.tabs .wrap"), nv = $("nav.tabs"); const f = () => nv.classList.toggle("end", nw.scrollLeft + nw.clientWidth >= nw.scrollWidth - 4); nw.addEventListener("scroll", f, { passive: true }); window.addEventListener("resize", f); setTimeout(f, 50); }
 let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => { if (S && L) rerenderAll(); }, 200); });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (S && L) rerenderAll(); });
 new MutationObserver(() => { if (S && L) rerenderAll(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
@@ -964,11 +897,24 @@ function liveMapStatus(){
 }
 /* "Actualizar" button: reload every data file (skipping caches), Vail's live report, then redraw */
 let refreshing = false, lastRefresh = Date.now();
+// si se publicó una versión nueva de la página, recargarla (una vez por versión)
+const APP_V = ((document.querySelector('script[src*="assets/app.js"]') || {}).src || "").split("v=")[1] || "dev";
+async function newVersion(){
+  if (APP_V === "dev") return null;
+  try {
+    const h = await fetch("index.html?t=" + Date.now(), { cache: "no-store" }).then(r => r.text());
+    const m = h.match(/assets\/app\.js\?v=([\w-]+)/);
+    if (!m || m[1] === APP_V) return null;
+    let tried = null; try { tried = sessionStorage.getItem("reloadFor"); sessionStorage.setItem("reloadFor", m[1]); } catch (e) {}
+    return tried === m[1] ? null : m[1];
+  } catch (e) { return null; }
+}
 async function refreshAll(){
   if (refreshing || !S) return;
   refreshing = true;
   const btn = $("#refresh"), lab = $("#refresh-label"), msg = $("#refresh-msg");
   btn.disabled = true; btn.classList.remove("ok", "err"); btn.classList.add("busy"); lab.textContent = "Actualizando…";
+  if (await newVersion()){ lab.textContent = "Versión nueva…"; location.reload(); return; }
   const prev = [L && L.generated_at, L && (L.report || {}).updated_text, SAT && SAT.overlay && SAT.overlay.id, INS && INS.updated].join("|");
   const t = "t=" + Date.now();
   const getN = (u, must) => fetch(u + "?" + t, { cache: "no-store" }).then(r => { if (!r.ok) throw new Error(u + " " + r.status); return r.json(); }).catch(e => { if (must) throw e; return null; });
@@ -997,3 +943,5 @@ const getJ = (u, must) => fetch(u + "?" + bust).then(r => { if (!r.ok) throw new
 Promise.all([getJ("data/static.json", true), getJ("data/live.json", true), getJ("data/insights.json"), getJ("data/sat/index.json"), getJ("data/cumbre_model.json"), getJ("data/map/status.json"), getJ("data/status.json")])
   .then(([s, l, ins, sat, cm, ms, st]) => { S = s; L = l; INS = ins; SAT = sat; CM = cm; MAPST = ms; STATUS = st; mergeInsights(); M = runModel(); renderHeader(); renderFooter(); route(); liveVail().then(ch => { if (ch){ M = runModel(); renderHeader(); rerenderAll(); } }); })
   .catch(err => { $("#fatal").replaceChildren(el("div", { class: "err" }, "No pude cargar los datos (" + err.message + "). Vuelve a abrir la página en un momento.")); route(); });
+
+setInterval(() => { if (L) renderHeader(); }, 60000);

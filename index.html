@@ -2,11 +2,13 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Nieve Vail</title>
-<meta name="description" content="Pronóstico Cumbre, mapa 3D, cámaras, satélite y probabilidad de apertura de los Back Bowls de Vail.">
-<meta name="theme-color" content="#14233a">
+<meta name="description" content="Pronóstico Claude, mapa 3D, cámaras, satélite y probabilidad de apertura de los Back Bowls de Vail.">
+<meta name="theme-color" content="#eef2f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0a1018" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Nieve Vail">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
@@ -14,126 +16,84 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/app.css?v=dev">
 </head>
 <body>
 <div class="wrap">
   <header class="top">
-    <div class="brand">Nieve Vail<small id="updated">Cargando datos…</small></div>
+    <div class="brand">Nieve Vail<small id="updated">Cargando…</small></div>
     <div class="tools">
       <button type="button" id="refresh" class="refresh" aria-describedby="refresh-msg">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M20.5 3.5v5h-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span id="refresh-label">Actualizar</span>
       </button>
       <div class="units" role="group" aria-label="Unidades">
-        <button type="button" id="u-metric" aria-pressed="true">cm · °C</button>
-        <button type="button" id="u-imp" aria-pressed="false">in · °F</button>
+        <button type="button" id="u-metric" aria-pressed="true" aria-label="Centímetros y grados Celsius">cm</button>
+        <button type="button" id="u-imp" aria-pressed="false" aria-label="Pulgadas y grados Fahrenheit">in</button>
       </div>
     </div>
   </header>
   <p id="refresh-msg" class="sr-only" aria-live="polite"></p>
 </div>
-<nav class="tabs" aria-label="Secciones"><div class="wrap">
-  <a href="#hoy" data-v="hoy">Hoy</a>
-  <a href="#pronostico" data-v="pronostico">Pronóstico</a>
-  <a href="#mapa" data-v="mapa">Mapa</a>
-  <a href="#camaras" data-v="camaras">Cámaras</a>
-  <a href="#satelite" data-v="satelite">Satélite</a>
-  <a href="#historial" data-v="historial">Historial</a>
-</div></nav>
+
 <main class="wrap">
   <div id="fatal"></div>
 
   <!-- ============ HOY ============ -->
   <section class="view" id="v-hoy">
-    <div class="sign" id="sign"><div class="t">Back Bowls<span id="sign-sub">Sun Down · Sun Up · Tea Cup · China · Siberia · Mongolia</span></div><span class="pill closed" id="bb-pill"><i></i>…</span></div>
+    <div class="sign" id="sign"><div class="t">Back Bowls<span id="sign-sub"></span></div><span class="pill closed" id="bb-pill"><i></i>…</span></div>
     <div class="card hero">
       <div class="qrow"><label for="target">¿Abiertos a más tardar el</label><input type="date" id="target"><span>?</span></div>
-      <div style="display:flex;align-items:flex-end;gap:14px;margin:12px 0 4px;flex-wrap:wrap">
+      <div class="probrow">
         <div class="big" id="p-big">–</div>
-        <div class="ink2 small" id="p-sub" style="max-width:34ch;padding-bottom:4px"></div>
+        <div class="ink2 small" id="p-sub"></div>
       </div>
       <div class="chips" id="quick" role="group" aria-label="Fechas rápidas"></div>
-      <div class="legend" id="lg-prob"></div>
       <div class="chart" id="ch-prob"></div>
-      <p class="tiny muted" id="p-note"></p>
+      <div class="legend" id="lg-prob"></div>
     </div>
 
-    <h2>Nieve que falta</h2>
-    <div class="card">
-      <div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap">
-        <div class="big" id="def-big">–</div>
-        <div class="ink2 small" id="def-sub" style="max-width:36ch;padding-bottom:4px"></div>
+    <div class="card gap">
+      <div class="cardtitle">Nieve que falta</div>
+      <div class="probrow stack">
+        <div class="big sm" id="def-big">–</div>
+        <div class="ink2 small" id="def-sub"></div>
       </div>
       <div class="meter" id="meter" aria-hidden="true"></div>
-      <p class="small ink2" id="def-ref"></p>
     </div>
 
     <h2>Ahora en Vail</h2>
     <div class="kv" id="now-kv"></div>
     <p class="tiny muted" id="now-src"></p>
 
-    <h2>Noticias y discusión</h2>
+    <h2>Noticias</h2>
     <div id="news"></div>
 
-    <h2>Años parecidos</h2>
-    <p class="small ink2" id="analog-intro"></p>
-    <ul class="list" id="analogs"></ul>
-
-    <h2>Cómo calculo la probabilidad</h2>
-    <div id="howto"></div>
+    <details class="fold"><summary>Años parecidos a este</summary><ul class="list" id="analogs"></ul></details>
   </section>
 
   <!-- ============ PRONÓSTICO ============ -->
   <section class="view" id="v-pronostico">
-    <h2>Próximos 16 días · Cumbre</h2>
-    <p class="small ink2" id="fc-intro"></p>
+    <h2 class="first">Pronóstico Claude</h2>
+    <p class="sub">Nieve nueva en la parte alta de Vail, próximos 16 días</p>
     <div class="kv kv3" id="fc-tot"></div>
-    <div class="legend" id="lg-fc" style="margin-top:12px"></div>
     <div class="chart" id="ch-fc"></div>
-    <p class="tiny muted" id="fc-note"></p>
-    <h3 style="margin:16px 0 2px">Lo que viene</h3>
+    <div class="legend" id="lg-fc"></div>
+    <h3>Lo que viene</h3>
     <ul class="list story" id="fc-story"></ul>
-    <h2>Comparación de fuentes</h2>
-    <p class="small ink2">Nieve por día según cada fuente, tal como la publican (antes de corregir). La fila Cumbre es el resultado final; la última, la probabilidad de nevada según 103 escenarios de ensambles.</p>
-    <div class="scroll"><table class="heat" id="t-cmp"></table></div>
-    <h2>Lo que Cumbre aprendió</h2>
-    <p class="small ink2" id="learn-intro"></p>
-    <div class="kv kv3" id="learn-kv"></div>
-    <div class="scroll" style="margin-top:12px"><table id="t-learn"></table></div>
-    <p class="tiny muted" id="learn-note"></p>
-    <details><summary>Cómo funciona Cumbre</summary>
-      <p class="small ink2">1. Junta el pronóstico de Vail, el del Servicio Meteorológico de EE. UU. (NWS) y 9 modelos: ECMWF, AIFS (la inteligencia artificial de ECMWF), GFS, HRRR, NBM, ICON, GEM, UKMO y JMA. De cada modelo toma la lluvia equivalente hora por hora en la parte alta (3,390 m) y la convierte en nieve según la temperatura: más frío, nieve más ligera y esponjosa.</p>
-      <p class="small ink2">2. Corrige cada fuente con lo que se equivoca. Lo aprendió comparando lo que cada modelo pronosticó 1 a 7 días antes, en las últimas temporadas, con lo que de verdad cayó (estación SNOTEL de Vail Mountain, ajustada al reporte de Vail). Además sigue aprendiendo con cada reporte de 24 h.</p>
-      <p class="small ink2">3. Mezcla las fuentes dando más peso a las que menos se equivocan para Vail en ese plazo. Cuando casi todas dicen seco, suma la nevada ligera que los modelos suelen no ver en las cumbres.</p>
-      <p class="small ink2">4. Los ensambles (51 escenarios de ECMWF, 31 de GFS y 21 de GEM) dan la probabilidad de nevada, el rango del 10% al 90% y cubren los días 11 a 16.</p>
-      <p class="small ink2">5. La probabilidad de los Back Bowls sortea miles de escenarios con esta distribución día por día y, después, las secuencias reales de nevadas de 22 temporadas.</p>
-      <p class="small ink2">Se reentrena cada lunes y se actualiza cada 3 horas, solo, en GitHub.</p>
-    </details>
-    <h2>Fuentes en detalle</h2>
-    <details><summary>Pronóstico oficial de Vail</summary>
-      <div class="scroll"><table id="t-vail"></table></div>
-      <p class="tiny muted" id="vail-fc-src"></p>
-    </details>
-    <details><summary>Servicio Meteorológico (NWS)</summary>
-      <p class="small muted" id="nws-meta"></p>
-      <ul class="list" id="nws"></ul>
-    </details>
-    <details><summary>Discusión de los meteorólogos (NWS)</summary>
-      <ul class="list" id="afd"></ul>
-      <p class="tiny muted" id="afd-meta"></p>
-    </details>
-    <details><summary>Ensambles</summary>
-      <div class="scroll"><table id="t-ens"></table></div>
-      <p class="tiny muted" id="ens-meta"></p>
-    </details>
-    <p class="small" style="margin-top:12px" id="opensnow-row">OpenSnow · Vail Daily Snow: <span id="opensnow"></span></p>
+    <h3>Día por día</h3>
+    <p class="sub">Toca un día para ver qué dice cada modelo.</p>
+    <div class="dayhead" aria-hidden="true"><span>Día</span><span></span><span>Nieve nueva</span><span>Prob. · mín/máx</span></div>
+    <div class="days" id="fc-days"></div>
+    <div class="card acc" id="fc-acc"></div>
+    <details class="fold"><summary>Pronóstico del Servicio Meteorológico</summary><ul class="list" id="nws"></ul><p class="tiny muted" id="nws-meta"></p></details>
+    <details class="fold"><summary>Lo que dicen los meteorólogos</summary><ul class="list" id="afd"></ul><p class="tiny muted" id="afd-meta"></p></details>
+    <details class="fold" id="opensnow-row"><summary>OpenSnow</summary><p class="small" id="opensnow"></p></details>
   </section>
 
   <!-- ============ MAPA ============ -->
   <section class="view" id="v-mapa">
-    <h2>Qué está abierto</h2>
-    <p class="small ink2" id="map-sum" style="margin-top:0"></p>
+    <p class="sub first" id="map-sum"></p>
     <div class="mapwrap" id="mapwrap">
       <div id="map3d" role="region" aria-label="Mapa 3D de Vail"></div>
       <div class="mapviews" role="group" aria-label="Vistas">
@@ -143,67 +103,58 @@
       </div>
       <div class="mapmsg" id="mapmsg">Cargando mapa 3D…</div>
     </div>
-    <div class="chips" id="map-layers" role="group" aria-label="Capas" style="margin-top:10px"></div>
+    <div class="chips" id="map-layers" role="group" aria-label="Capas"></div>
     <div class="legend" id="lg-map"></div>
-    <p class="tiny muted" id="map-note"></p>
-    <div class="card" id="zone-detail"></div>
-    <h2>Mapas reales</h2>
-    <div class="btns" id="map-links"></div>
+    <div class="card gap" id="zone-detail"></div>
   </section>
 
   <!-- ============ CÁMARAS ============ -->
   <section class="view" id="v-camaras">
-    <h2>Cámaras en vivo</h2>
-    <p class="small ink2">Toca una cámara para ver la transmisión. Se carga una a la vez para no gastar datos.</p>
     <div id="cams"></div>
   </section>
 
   <!-- ============ SATÉLITE ============ -->
   <section class="view" id="v-satelite">
-    <h2>Nieve vista desde el espacio</h2>
-    <p class="small ink2" id="sat-intro" style="margin-top:0"></p>
+    <p class="sub first" id="sat-intro"></p>
     <div class="satbox" id="satbox"></div>
-    <div class="chips" id="sat-layers" role="group" aria-label="Capa" style="margin-top:10px"></div>
-    <div class="kv kv3" id="sat-kv" style="margin-top:12px"></div>
-    <h2>Cobertura de nieve esta temporada</h2>
-    <p class="small ink2" id="sat-chart-intro"></p>
-    <div class="legend" id="lg-sat"></div>
+    <div class="chips" id="sat-layers" role="group" aria-label="Capa"></div>
+    <div class="kv kv3 gap" id="sat-kv"></div>
+    <h3>Nieve en la temporada</h3>
     <div class="chart" id="ch-sat"></div>
-    <h3>Pasadas de Sentinel-2</h3>
-    <ul class="list" id="sat-list"></ul>
-    <p class="tiny muted" id="sat-note"></p>
-    <h3>Más imágenes</h3>
-    <div class="btns" id="sat-links"></div>
-    <details><summary>Cómo detecto la nieve</summary>
-      <p class="small ink2">Sentinel-2 pasa cada 2 a 5 días con 10 m por pixel. La nieve refleja mucha luz visible pero casi nada del infrarrojo de onda corta, así que el índice NDSI (verde menos infrarrojo, entre su suma) la separa de la roca, el pasto y el bosque. Las nubes se quitan con la clasificación de escena de ESA y el porcentaje se calcula solo con los pixeles despejados.</p>
-      <p class="small ink2">Los Back Bowls miran al sur: son los primeros en perder nieve con el sol. Si el frente se ve blanco y los bowls cafés, falta base natural. Las franjas blancas del frente al inicio de temporada son nieve artificial.</p>
-    </details>
+    <div class="legend" id="lg-sat"></div>
+    <details class="fold"><summary>Pasadas recientes</summary><ul class="list" id="sat-list"></ul></details>
   </section>
 
   <!-- ============ HISTORIAL ============ -->
   <section class="view" id="v-historial">
-    <h2>Agua en la nieve esta temporada</h2>
-    <p class="small ink2" id="swe-intro"></p>
+    <h2 class="first">Agua en la nieve</h2>
     <div class="chips" id="cmp-chips" role="group" aria-label="Comparar con temporada"></div>
-    <div class="legend" id="lg-swe"></div>
     <div class="chart" id="ch-swe"></div>
-    <h2>Fecha de apertura por temporada</h2>
-    <p class="small ink2">Primer día con terreno abierto en cualquiera de los seis Back Bowls. La franja de arriba es el rango probable de este año (80%).</p>
+    <div class="legend" id="lg-swe"></div>
+    <h2>Cuándo abrieron los Back Bowls</h2>
     <div class="chart" id="ch-open"></div>
-    <h2>Nevada acumulada según Vail</h2>
-    <div class="legend" id="lg-tot"></div>
+    <h2>Nevada acumulada</h2>
     <div class="chart" id="ch-tot"></div>
+    <div class="legend" id="lg-tot"></div>
     <h2>Pistas abiertas</h2>
-    <div class="legend" id="lg-trails"></div>
     <div class="chart" id="ch-trails"></div>
-    <h2>Tabla de aperturas</h2>
-    <div class="scroll"><table id="t-open"></table></div>
+    <div class="legend" id="lg-trails"></div>
+    <details class="fold"><summary>Tabla de aperturas</summary><div class="scroll"><table id="t-open"></table></div></details>
   </section>
+  <footer id="foot"></footer>
 </main>
-<footer class="wrap" id="foot"></footer>
 
-<script src="assets/nws_es.js"></script>
-<script src="assets/map3d.js"></script>
-<script src="assets/app.js"></script>
+<nav class="tabbar" aria-label="Secciones">
+  <a href="#hoy" data-v="hoy"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20 9.5 9l3.5 5 2.5-3.5L21 20Z"/><path d="M9.5 9V3.5l4 1.6-4 1.6"/></svg><span>Hoy</span></a>
+  <a href="#pronostico" data-v="pronostico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 14.5a3.6 3.6 0 0 1 .2-7.2 5.2 5.2 0 0 1 10 1.3 3 3 0 0 1 .6 5.9Z"/><path d="M8 18.5h.01M12 20h.01M16 18.5h.01"/></svg><span>Pronóstico</span></a>
+  <a href="#mapa" data-v="mapa"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6.5 6-2.5 6 2.5 6-2.5v13.5l-6 2.5-6-2.5-6 2.5Z"/><path d="M9 4v13.5M15 6.5V20"/></svg><span>Mapa</span></a>
+  <a href="#camaras" data-v="camaras"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6.5" width="12" height="11" rx="2"/><path d="m15 10.5 6-3.5v10l-6-3.5"/></svg><span>Cámaras</span></a>
+  <a href="#satelite" data-v="satelite"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4.5 9.5 4-4 3 3-4 4Z"/><path d="m12.5 17.5 4-4 3 3-4 4Z"/><path d="m10 12 2 2"/><circle cx="11" cy="13" r="1.6"/><path d="M15.5 3.5a5 5 0 0 1 5 5"/></svg><span>Satélite</span></a>
+  <a href="#historial" data-v="historial"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V11M10 20V5M16 20v-6M3 20.5h18"/></svg><span>Historial</span></a>
+</nav>
+
+<script src="assets/nws_es.js?v=dev"></script>
+<script src="assets/map3d.js?v=dev"></script>
+<script src="assets/app.js?v=dev"></script>
 </body>
 </html>
