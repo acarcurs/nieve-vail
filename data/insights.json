@@ -1,74 +1,74 @@
 {
-  "updated": "2026-11-27T00:09:13Z",
+  "updated": "2026-11-27T18:15:00Z",
   "afd": {
-    "issued": "2026-11-26T19:36:00+00:00",
+    "issued": "2026-11-27T11:21:00+00:00",
     "office": "NWS Grand Junction",
     "url": "https://forecast.weather.gov/product.php?site=GJT&issuedby=GJT&product=AFD&format=txt&version=1&glossary=0",
     "bullets": [
-      "Hoy y la mayor parte del viernes: secos y templados, con nubes altas y viento ligero.",
-      "Nieve desde el viernes por la tarde-noche y durante el sábado: se esperan 4 a 8 pulgadas en las montañas del centro de Colorado (hasta 6-12 en la cordillera Park); hay aviso de clima invernal por hasta 8 pulgadas hasta la mañana del domingo.",
-      "El domingo regresa el tiempo más seco con algunos chubascos ligeros; el lunes otra onda trae más chubascos al norte y posibilidad en el centro, pero es pronto para saber cuánto nevará.",
-      "A mitad de la próxima semana un sistema del suroeste podría traer una tormenta significativa con humedad subtropical, aunque la confianza es baja."
+      "Viernes: seco y templado, con nubes en aumento; la nieve empieza por la tarde-noche.",
+      "Sábado es el día fuerte: la nieve más intensa se espera entre las 5 am y las 5 pm, con ráfagas de hasta 45 mph y nieve soplada; hay avisos de clima invernal hasta el domingo en la mañana (4-8 pulgadas en la Divisoria Central y Flat Tops, 10-14 en la cordillera Park).",
+      "Domingo y lunes: mejora y clima más tranquilo; el lunes podría haber chubascos ligeros en la Divisoria (50-70% de probabilidad de una o dos pulgadas), con baja confianza.",
+      "A mitad de semana podría llegar un sistema más sureño con humedad de río atmosférico, pero los modelos discrepan mucho: va de buena nevada a nada."
     ]
   },
   "nws": {
-    "issued": "2026-11-26T19:47:22+00:00",
+    "issued": "2026-11-27T11:26:16+00:00",
     "periods": [
       {
-        "name": "Día de Acción de Gracias",
-        "text": "Mayormente soleado, máxima cerca de 32 °F. Viento del oeste-noroeste de unas 5 mph."
+        "name": "Hoy",
+        "text": "Posibles chubascos de nieve ligeros después de las 5 pm. Parcialmente soleado, máxima cerca de 32 °F. Viento del oeste de 5 a 10 mph, con ráfagas de hasta 30 mph. Probabilidad de precipitación de 20%."
       },
       {
         "name": "Esta noche",
-        "text": "Mayormente despejado, mínima cerca de 21 °F. Viento del oeste-noroeste de unas 5 mph."
-      },
-      {
-        "name": "Viernes",
-        "text": "Ligera probabilidad de chubascos de nieve después de las 5 pm. Parcialmente soleado, máxima cerca de 30 °F. Viento del oeste-noroeste de 5 a 10 mph, con ráfagas de hasta 30 mph. Probabilidad de precipitación de 20%."
-      },
-      {
-        "name": "Viernes en la noche",
-        "text": "Chubascos de nieve. Mayormente nublado, mínima cerca de 23 °F. Viento del oeste-suroeste de unas 10 mph, con ráfagas de hasta 30 mph. Probabilidad de precipitación de 80%. Posible acumulación de 1 a 3 pulgadas."
+        "text": "Chubascos de nieve. Mayormente nublado, mínima cerca de 21 °F. Viento del oeste de 10 a 15 mph, con ráfagas de hasta 35 mph. Probabilidad de precipitación de 90%. Posible acumulación de 2 a 4 pulgadas."
       },
       {
         "name": "Sábado",
-        "text": "Chubascos de nieve. Nublado, máxima cerca de 27 °F. Viento del oeste de 10 a 15 mph, con ráfagas de hasta 40 mph. Probabilidad de precipitación de 90%. Posible acumulación de 2 a 4 pulgadas."
+        "text": "Chubascos de nieve antes de las 7 am, luego chubascos y nieve soplada en algunas zonas. Nublado, máxima cerca de 31 °F. Viento del oeste-noroeste de 15 a 20 mph, con ráfagas de hasta 40 mph. Probabilidad de precipitación de 100%. Posible acumulación de 3 a 5 pulgadas."
       },
       {
         "name": "Sábado en la noche",
-        "text": "Chubascos de nieve antes de las 11 pm. Mayormente nublado, mínima cerca de 11 °F. Probabilidad de precipitación de 80%. Posible acumulación de menos de media pulgada."
+        "text": "Posibles chubascos de nieve antes de las 11 pm. Parcialmente nublado, mínima cerca de 8 °F. Viento del oeste-suroeste de 5 a 15 mph, con ráfagas de hasta 35 mph. Probabilidad de precipitación de 30%. Posible acumulación de menos de media pulgada."
       },
       {
         "name": "Domingo",
-        "text": "Mayormente soleado, máxima cerca de 26 °F."
+        "text": "Soleado, máxima cerca de 28 °F. Viento del suroeste de 5 a 10 mph."
       },
       {
         "name": "Domingo en la noche",
-        "text": "Parcialmente nublado, mínima cerca de 18 °F."
+        "text": "Mayormente despejado, mínima cerca de 18 °F."
       },
       {
         "name": "Lunes",
-        "text": "Ligera probabilidad de chubascos de nieve después de las 11 am. Parcialmente soleado, máxima cerca de 27 °F."
+        "text": "Ligera probabilidad de chubascos de nieve entre las 11 am y las 5 pm. Mayormente soleado, máxima cerca de 28 °F."
       },
       {
         "name": "Lunes en la noche",
-        "text": "Ligera probabilidad de chubascos de nieve antes de las 11 pm. Mayormente nublado, mínima cerca de 19 °F."
+        "text": "Mayormente nublado, mínima cerca de 18 °F."
       },
       {
         "name": "Martes",
-        "text": "Parcialmente soleado, máxima cerca de 31 °F."
+        "text": "Parcialmente soleado, máxima cerca de 32 °F."
       },
       {
         "name": "Martes en la noche",
-        "text": "Ligera probabilidad de chubascos de nieve después de las 11 pm. Mayormente nublado, mínima cerca de 21 °F. Poca o nula acumulación de nieve."
+        "text": "Mayormente nublado, con ligera probabilidad de chubascos de nieve después de las 5 am. Mínima cerca de 21 °F."
       },
       {
         "name": "Miércoles",
-        "text": "Probables chubascos de nieve. Parcialmente soleado, máxima cerca de 28 °F. Posible acumulación de menos de una pulgada."
+        "text": "Probables chubascos de nieve. Parcialmente soleado, máxima cerca de 29 °F. Posible acumulación de menos de una pulgada."
       },
       {
         "name": "Miércoles en la noche",
         "text": "Probables chubascos de nieve. Mayormente nublado, mínima cerca de 19 °F. Posible acumulación de menos de media pulgada."
+      },
+      {
+        "name": "Jueves",
+        "text": "Posibles chubascos de nieve. Parcialmente soleado, máxima cerca de 25 °F."
+      },
+      {
+        "name": "Jueves en la noche",
+        "text": "Posibles chubascos de nieve. Mayormente nublado, mínima cerca de 16 °F."
       }
     ]
   },
@@ -80,12 +80,18 @@
     "url": "https://opensnow.com/dailysnow/vail"
   },
   "news": {
-    "checked": "2026-11-26",
+    "checked": "2026-11-27",
     "signal": 0,
     "announced_date": null,
     "label": "Sin señales",
-    "summary": "No hay anuncios ni reportes de trabajos de apertura en los Back Bowls (0 de 55 pistas abiertas). La nieve del viernes por la noche y el sábado podría cambiar el panorama, pero Vail aún no ha dicho nada.",
+    "summary": "Los Back Bowls siguen cerrados (0 de 55 pistas abiertas) y no hay anuncios ni reportes de trabajos de apertura; Vail abrió terreno nuevo en Acción de Gracias, pero no en esa zona. La tormenta del viernes en la noche y el sábado podría cambiar el panorama.",
     "items": [
+      {
+        "title": "Vail Mountain abre terreno nuevo en Acción de Gracias",
+        "source": "Vail Daily",
+        "url": "https://news.google.com/rss/articles/CBMihgFBVV95cUxQRUM5ckhYTjRoUHI0NUxiTmtZZ0FSSlIteXByaFNaTmlhTE1tUm9NVmJvb3o2R0d6ZUlycEpFaVVKc2hUYVpZVkZrd09NR1JZb2poV21iRWZQa3FHdkJyYnVHYjFaQWlVYVVzWlRoMzZiUFo2eDc2dnZ2Sm56dVZ1TEliYXhFQQ?oc=5",
+        "date": "2026-11-26"
+      },
       {
         "title": "Vail ya abrió; Beaver Creek retrasa su apertura al 28 de noviembre",
         "source": "deeparrival.com",
