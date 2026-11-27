@@ -47,7 +47,7 @@ const pct = p => (p < 0.005 ? "<1" : p > 0.995 ? ">99" : Math.round(p * 100)) + 
 
 /* ---------- state ---------- */
 let S = null, L = null, M = null;   // static, live, model results
-let INS = null, SAT = null, CM = null, MAPST = null, OSMGEO = null, STATUS = null;   // insights, satellite, trained forecast model, map status
+let INS = null, SAT = null, CM = null, MAPST = null, OSMGEO = null, STATUS = null, SP = null;   // insights, satellite, trained forecast model, map status
 let selTarget = null, cmpSeason = "2025";
 
 /* ---------- model ---------- */
@@ -159,11 +159,12 @@ function attachTip(wrap, svg, W, H, pad, xs, xToPx, rowsAt, extra){
   };
   const hide = () => { cross.setAttribute("visibility", "hidden"); dots.setAttribute("visibility", "hidden"); tip.style.display = "none"; };
   const pos = ev => { const r = svg.getBoundingClientRect(); return (ev.clientX - r.left) * (W / r.width); };
+  let tapped = false;      // a tap also focuses the chart: keep the tapped point, not the last one
   hit.addEventListener("pointermove", ev => show(pos(ev)));
-  hit.addEventListener("pointerdown", ev => show(pos(ev)));
+  hit.addEventListener("pointerdown", ev => { tapped = true; show(pos(ev)); });
   hit.addEventListener("pointerleave", ev => { if (ev.pointerType === "mouse") hide(); });
-  hit.addEventListener("focus", () => show(xToPx(xs[xs.length - 1])));
-  hit.addEventListener("blur", hide);
+  hit.addEventListener("focus", () => { if (!tapped) show(xToPx(xs[xs.length - 1])); tapped = false; });
+  hit.addEventListener("blur", () => { tapped = false; hide(); });
   hit.addEventListener("keydown", ev => { if (ev.key === "ArrowLeft" || ev.key === "ArrowRight"){ idx = clamp(idx + (ev.key === "ArrowRight" ? 1 : -1), 0, xs.length - 1); show(xToPx(xs[idx])); ev.preventDefault(); } });
   document.addEventListener("pointerdown", ev => { if (!wrap.contains(ev.target)) hide(); });
 }
@@ -708,31 +709,139 @@ function renderSatelite(){
     el("a", { class: "btn", href: wv(n2d(M.t0 - 1)), target: "_blank", rel: "noopener" }, "NASA Worldview · ayer"),
     el("a", { class: "btn", href: S.links.google_earth, target: "_blank", rel: "noopener" }, "Google Earth 3D"));
 }
-function renderHistorial(){
-  const A = css("--accent"), O = css("--accent-2"), G = css("--muted");
-  const sy = M.syear, x0 = d2n(sy + "-10-20"), x1 = d2n((sy + 1) + "-03-31");
-  const mdToN = k => d2n((k >= "07-01" ? sy : sy + 1) + "-" + k);
-  const med = S.median.map(([k, v]) => [mdToN(k), v]).filter(p => p[0] >= x0 && p[0] <= x1);
-  const band = S.band.map(([k, lo, mid, hi]) => [mdToN(k), lo, hi]);
-  const cur = (L.snotel || []).filter(r => r.swe != null).map(r => [d2n(r.date), r.swe]);
-  const seasons = Object.keys(S.seasons).sort().reverse();
-  const cs = S.seasons[cmpSeason];
-  const cmp = cs ? cs.swe.map((v, i) => [d2n(cs.start) + i - (d2n(cs.start.slice(0, 4) + "-10-01") - d2n(sy + "-10-01")), v]) : [];
+// ---------- Agua en la nieve: esta temporada contra los últimos inviernos (SNOTEL #842) ----------
+const SP_CAT = [["Entre los inviernos con menos nieve", "Muy bajo"], ["Debajo de lo normal", "Bajo"], ["Normal para la fecha", "Normal"], ["Arriba de lo normal", "Alto"], ["Entre los inviernos más nevados", "Muy alto"]];
+const SP_KEYS = ["min", "p10", "p30", "p70", "p90", "max"];
+const sLab = y => y + "-" + String(+y + 1).slice(2);
+const swe1 = x => (UNITS === "metric" ? x * 2.54 : x).toLocaleString("es-MX", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const sweFmt = x => x == null ? "–" : swe1(x) + (UNITS === "metric" ? " cm" : " in");
+let spWin = null;
+function spSeries(){
+  const days = SP.days, N = days.length, sy = M.syear, base = SP.seasons[String(sy)] || [];
+  const idx = {}; days.forEach((k, i) => { idx[k] = i; });
+  const cur = Array.from({ length: N }, (_, i) => base[i] != null ? base[i] : null);
+  for (const r of (L.snotel || [])){
+    if (r.swe == null) continue;
+    const y = +r.date.slice(0, 4), m = +r.date.slice(5, 7);
+    if ((m >= 8 ? y : y - 1) !== sy) continue;
+    const i = idx[r.date.slice(5)];
+    if (i != null) cur[i] = r.swe;
+  }
+  let ti = -1; cur.forEach((v, i) => { if (v != null) ti = i; });
+  const dateN = i => d2n((days[i] >= "08" ? sy : sy + 1) + "-" + days[i]);
+  return { days, N, sy, cur, ti, dateN, idx };
+}
+function renderSnowpack(){
+  const card = $("#sp-card");
+  if (!SP || !SP.days || !SP.bands || !SP.seasons){ card.hidden = true; return; }
+  const { days, N, sy, cur, ti, dateN, idx } = spSeries();
+  if (ti < 0){ card.hidden = true; return; }
+  card.hidden = false;
+  const B = SP.bands, ref = SP.ref;
+  if (!SP.seasons[cmpSeason] || +cmpSeason >= sy) cmpSeason = SP.seasons[String(sy - 1)] ? String(sy - 1) : Object.keys(SP.seasons).filter(y => +y < sy).sort().pop();
+  const cmp = SP.seasons[cmpSeason] || [];
+  const v = cur[ti], med = B.p50[ti], vc = cmp[ti];
+  const cat = v < B.p10[ti] ? 0 : v < B.p30[ti] ? 1 : v <= B.p70[ti] ? 2 : v <= B.p90[ti] ? 3 : 4;
+  const vals = [];
+  for (let y = ref.first; y <= ref.last; y++){ const a = SP.seasons[y]; if (a && a[ti] != null) vals.push(a[ti]); }
+  const n = vals.length, below = vals.filter(x => x < v - 1e-9).length;
+  const rank = B.max[ti] - B.min[ti] < 0.05 ? "A esta fecha casi ningún invierno tiene nieve todavía."
+    : below === 0 ? `La más baja de los últimos ${n} inviernos a esta fecha.`
+    : below === n ? `La más alta de los últimos ${n} inviernos a esta fecha.`
+    : `Más agua que en ${below} de los últimos ${n} inviernos a esta fecha.`;
+  $("#sp-date").textContent = fmtD(dateN(ti));
+  $("#sp-status").replaceChildren(el("i", { style: `background:var(--sp${cat + 1})` }), el("b", null, SP_CAT[cat][0]), el("span", null, rank));
+  $("#sp-kv").replaceChildren(
+    el("div", null, el("b", null, sweFmt(v)), el("span", null, "Esta temporada")),
+    el("div", { class: "hl" }, el("b", null, med > 0.05 ? Math.round(v / med * 100) + "%" : "–"), el("span", null, "de la mediana")),
+    el("div", null, el("b", null, sweFmt(vc)), el("span", null, sLab(cmpSeason))),
+    el("div", null, el("b", null, sweFmt(med)), el("span", null, "Mediana")));
+  // period: start of season (Oct to Jan, or 5 weeks past today) or the whole season
+  const early1 = Math.min(N - 1, Math.max(days.indexOf("01-01"), ti + 35));
+  if (spWin == null) spWin = early1 < days.indexOf("03-01") ? "early" : "full";
+  $("#sp-win").replaceChildren(...[["early", "Oct–" + MES[+days[early1].slice(0, 2) - 1]], ["full", "Oct–jul"]].map(([k, t]) =>
+    el("button", { type: "button", class: "chip", "aria-pressed": String(spWin === k), onclick: () => { spWin = k; renderSnowpack(); } }, t)));
+  const sel = $("#sp-cmp");
+  sel.replaceChildren(...Object.keys(SP.seasons).filter(y => +y < sy).sort((a, b) => b - a).map(y => el("option", { value: y }, sLab(y))));
+  sel.value = cmpSeason;
+  sel.onchange = () => { cmpSeason = sel.value; renderSnowpack(); };
   const op = S.openings.find(o => String(o.season) === cmpSeason);
-  const opN = op ? d2n(op.date) - (d2n(op.season + "-10-01") - d2n(sy + "-10-01")) : null;
+  spChart($("#ch-sp"), { days, B, cur, cmp, ti, dateN, x0: 0, x1: spWin === "early" ? early1 : N - 1, cmpLabel: sLab(cmpSeason),
+    openIdx: op ? idx[op.date.slice(5)] : null });
+  $("#lg-sp").replaceChildren(
+    el("span", { style: "--c:" + css("--ink") }, el("i", { class: "thick" }), "Esta temporada"),
+    el("span", { style: "--c:" + css("--accent-2") }, el("i"), sLab(cmpSeason)),
+    el("span", { style: "--c:" + css("--ink-2") }, el("i", { class: "dash" }), "Mediana"));
+  $("#sp-scale").replaceChildren(...SP_CAT.map((c, k) => el("div", null, el("i", { style: `background:var(--sp${k + 1})` }), el("span", null, c[1]))));
+  $("#sp-note").textContent = `Cada fecha se compara con el mismo día de los últimos ${ref.n} inviernos (${sLab(ref.first)} a ${sLab(ref.last)}). Normal es el 40% de en medio; muy bajo y muy alto, el 10% de cada extremo.`;
+}
+function spChart(host, o){
+  host.replaceChildren();
+  const { days, B, cur, cmp, ti, dateN, x0, x1 } = o;
+  const W = Math.max(280, host.clientWidth || 340), H = 250, pad = { l: 34, r: 12, t: 26, b: 24 };
+  const toU = x => UNITS === "metric" ? x * 2.54 : x;
+  let top = 0;
+  for (let i = x0; i <= x1; i++) top = Math.max(top, B.max[i] || 0, cur[i] || 0, cmp[i] || 0);
+  const yT = niceTicks(Math.max(toU(top) * 1.03, UNITS === "metric" ? 5 : 2), 4), ymax = yT[yT.length - 1];
+  const X = i => pad.l + (i - x0) / (x1 - x0) * (W - pad.l - pad.r);
+  const Y = v => H - pad.b - v / ymax * (H - pad.t - pad.b);
+  const path = (arr, upto) => {
+    let d = "", pen = false;
+    for (let i = x0; i <= Math.min(x1, upto == null ? x1 : upto); i++){
+      if (arr[i] == null){ pen = false; continue; }
+      d += (pen ? "L" : "M") + X(i).toFixed(1) + "," + Y(toU(arr[i])).toFixed(1); pen = true;
+    }
+    return d;
+  };
+  const svg = sv("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Agua en la nieve: esta temporada comparada con los últimos inviernos" });
+  for (let k = 0; k < 5; k++){                       // percentile bands
+    const lo = B[SP_KEYS[k]], hi = B[SP_KEYS[k + 1]], up = [], dn = [];
+    for (let i = x0; i <= x1; i++) if (lo[i] != null && hi[i] != null){
+      up.push(X(i).toFixed(1) + "," + Y(toU(hi[i])).toFixed(1)); dn.push(X(i).toFixed(1) + "," + Y(toU(lo[i])).toFixed(1));
+    }
+    if (up.length > 1) svg.append(sv("path", { d: "M" + up.join("L") + "L" + dn.reverse().join("L") + "Z", fill: css("--sp" + (k + 1)) }));
+  }
+  for (const t of yT){
+    svg.append(sv("line", { x1: pad.l, x2: W - pad.r, y1: Y(t), y2: Y(t), stroke: t === 0 ? css("--axis") : css("--grid-on") }));
+    svg.append(sv("text", { x: pad.l - 6, y: Y(t) + 4, "text-anchor": "end" }, String(t)));
+  }
+  svg.append(sv("text", { x: pad.l - 6, y: pad.t - 12, "text-anchor": "end" }, UNITS === "metric" ? "cm" : "in"));
+  for (let i = x0; i <= x1; i++) if (days[i].endsWith("-01")){
+    svg.append(sv("line", { x1: X(i), x2: X(i), y1: H - pad.b, y2: H - pad.b + 4, stroke: css("--axis") }));
+    svg.append(sv("text", { x: X(i), y: H - 6, "text-anchor": i === x0 ? "start" : "middle" }, MES[+days[i].slice(0, 2) - 1]));
+  }
+  const stroke = (d, c, w, extra) => {
+    if (!d) return;
+    if (!(extra && extra["stroke-dasharray"])) svg.append(sv("path", { d, fill: "none", stroke: css("--card"), "stroke-width": w + 3, "stroke-linejoin": "round", "stroke-linecap": "round", opacity: .85 }));
+    svg.append(sv("path", { d, fill: "none", stroke: c, "stroke-width": w, "stroke-linejoin": "round", "stroke-linecap": "round", ...(extra || {}) }));
+  };
+  stroke(path(B.p50), css("--ink-2"), 1.4, { "stroke-dasharray": "4 3" });
+  stroke(path(cmp), css("--accent-2"), 2);
+  if (o.openIdx != null && o.openIdx >= x0 && o.openIdx <= x1 && cmp[o.openIdx] != null){
+    const cx = X(o.openIdx), cy = Y(toU(cmp[o.openIdx]));
+    svg.append(sv("circle", { cx, cy, r: 4, fill: css("--card"), stroke: css("--accent-2"), "stroke-width": 2 }));
+    svg.append(sv("text", { x: clamp(cx, pad.l + 4, W - pad.r - 4), y: cy + 16, "text-anchor": cx > W - 60 ? "end" : cx < pad.l + 40 ? "start" : "middle", class: "lbl" }, "Bowls " + fmtD(dateN(o.openIdx))));
+  }
+  if (ti >= x0 && ti <= x1){
+    svg.append(sv("line", { x1: X(ti), x2: X(ti), y1: pad.t - 4, y2: H - pad.b, stroke: css("--ink-2"), "stroke-width": 1, "stroke-dasharray": "2 3" }));
+    svg.append(sv("text", { x: clamp(X(ti), pad.l + 16, W - pad.r - 16), y: pad.t - 8, "text-anchor": "middle", class: "lbl" }, "hoy"));
+  }
+  stroke(path(cur, ti), css("--ink"), 2.6);
+  if (ti >= x0 && ti <= x1) svg.append(sv("circle", { cx: X(ti), cy: Y(toU(cur[ti])), r: 4.5, fill: css("--ink"), stroke: css("--card"), "stroke-width": 2 }));
+  host.append(svg);
+  const xs = []; for (let i = x0; i <= x1; i++) xs.push(i);
+  attachTip(host, svg, W, H, pad, xs, X, i => ({
+    title: fmtD(dateN(i)),
+    rows: [cur[i] != null && i <= ti ? { n: "Esta temporada", v: sweFmt(cur[i]), c: css("--ink"), py: Y(toU(cur[i])) } : null,
+      cmp[i] != null ? { n: o.cmpLabel, v: sweFmt(cmp[i]), c: css("--accent-2"), py: Y(toU(cmp[i])) } : null,
+      B.p50[i] != null ? { n: "Mediana", v: sweFmt(B.p50[i]), c: css("--ink-2") } : null,
+      B.p30[i] != null ? { n: "Normal", v: swe1(B.p30[i]) + "–" + sweFmt(B.p70[i]), c: css("--muted") } : null].filter(Boolean) }));
+}
+function renderHistorial(){
+  const A = css("--ink"), O = css("--accent-2"), G = css("--muted");
+  const sy = M.syear;
   const toU = v => UNITS === "metric" ? v * 2.54 : v;
-  const vis = [...med.map(p => p[1]), ...band.filter(p => p[0] <= x1).map(p => p[2]), ...cur.map(p => p[1])].filter(v => v != null);
-  const yT = niceTicks(toU(Math.max(...vis)) * 1.04, 4), ymax = yT[yT.length - 1];
-  $("#swe-intro").textContent = "Agua acumulada en la nieve en la estación SNOTEL de Vail Mountain (3,139 m). Es la mejor medida de base natural: los Back Bowls no tienen nieve artificial.";
-  $("#cmp-chips").replaceChildren(...["2025", "2024", "2023", "2021", "2017", "2011", "2010"].filter(y => S.seasons[y]).map(y => el("button", { type: "button", class: "chip", "aria-pressed": String(y === cmpSeason), onclick: () => { cmpSeason = y; renderHistorial(); } }, y + "-" + String(+y + 1).slice(2))));
-  legend($("#lg-swe"), [{ n: "Esta temporada", c: A }, { n: (+cmpSeason) + "-" + String(+cmpSeason + 1).slice(2), c: O }, { n: "Mediana 1991–2020", c: G }, { n: "Rango 10–90% (2002–2025)", c: G, box: true }]);
-  lineChart($("#ch-swe"), {
-    x: [x0, x1], y: [0, ymax], yTicks: yT, yFmt: v => String(v), yUnit: UNITS === "metric" ? "cm" : "in", height: 230, aria: "Agua en la nieve por fecha",
-    band: { pts: band.map(p => [p[0], toU(p[1]), toU(p[2])]), c: G },
-    series: [{ pts: med.map(p => [p[0], toU(p[1])]), c: G, w: 1.5 }, { pts: cmp.map(p => [p[0], p[1] == null ? null : toU(p[1])]), c: O }, { pts: cur.map(p => [p[0], toU(p[1])]), c: A, end: true }],
-    marks: (op && opN >= x0 && opN <= x1) ? [{ x: opN, y: toU(op.swe), c: O, label: "abrió " + fmtD(d2n(op.date)) }] : [],
-    tip: { xs: med.map(p => p[0]), rows: (x, Y) => { const m = med.find(p => p[0] === x), c = cur.find(p => p[0] === x), k = cmp.find(p => p[0] === x); return { title: fmtD(x), rows: [c ? { n: "Esta temporada", v: len(c[1], true), c: A, py: Y(toU(c[1])) } : null, k && k[1] != null ? { n: (+cmpSeason) + "-" + String(+cmpSeason + 1).slice(2), v: len(k[1], true), c: O, py: Y(toU(k[1])) } : null, { n: "Mediana", v: len(m[1], true), c: G, py: Y(toU(m[1])) }].filter(Boolean) }; } }
-  });
+  renderSnowpack();
   renderOpenPlot();
   // Vail reported totals
   const hist = L.history_vail || [], last = S.last_season || [];
@@ -920,8 +1029,8 @@ async function refreshAll(){
   const getN = (u, must) => fetch(u + "?" + t, { cache: "no-store" }).then(r => { if (!r.ok) throw new Error(u + " " + r.status); return r.json(); }).catch(e => { if (must) throw e; return null; });
   let text, cls;
   try {
-    const [l, ins, sat, cm, ms, st] = await Promise.all([getN("data/live.json", true), getN("data/insights.json"), getN("data/sat/index.json"), getN("data/cumbre_model.json"), getN("data/map/status.json"), getN("data/status.json")]);
-    L = l; INS = ins || INS; SAT = sat || SAT; CM = cm || CM; MAPST = ms || MAPST; STATUS = st || STATUS;
+    const [l, ins, sat, cm, ms, st, sp] = await Promise.all([getN("data/live.json", true), getN("data/insights.json"), getN("data/sat/index.json"), getN("data/cumbre_model.json"), getN("data/map/status.json"), getN("data/status.json"), getN("data/snowpack.json")]);
+    L = l; INS = ins || INS; SAT = sat || SAT; CM = cm || CM; MAPST = ms || MAPST; STATUS = st || STATUS; SP = sp || SP;
     mergeInsights();
     await liveVail();
     M = runModel(); renderHeader(); renderFooter(); rerenderAll();
@@ -940,8 +1049,8 @@ document.addEventListener("click", e => { if (e.target.closest && e.target.close
 document.addEventListener("visibilitychange", () => { if (!document.hidden && S && Date.now() - lastRefresh > 10 * 60 * 1000) refreshAll(); });
 const bust = "t=" + Math.floor(Date.now() / 60000);
 const getJ = (u, must) => fetch(u + "?" + bust).then(r => { if (!r.ok) throw new Error(u + " " + r.status); return r.json(); }).catch(e => { if (must) throw e; return null; });
-Promise.all([getJ("data/static.json", true), getJ("data/live.json", true), getJ("data/insights.json"), getJ("data/sat/index.json"), getJ("data/cumbre_model.json"), getJ("data/map/status.json"), getJ("data/status.json")])
-  .then(([s, l, ins, sat, cm, ms, st]) => { S = s; L = l; INS = ins; SAT = sat; CM = cm; MAPST = ms; STATUS = st; mergeInsights(); M = runModel(); renderHeader(); renderFooter(); route(); liveVail().then(ch => { if (ch){ M = runModel(); renderHeader(); rerenderAll(); } }); })
+Promise.all([getJ("data/static.json", true), getJ("data/live.json", true), getJ("data/insights.json"), getJ("data/sat/index.json"), getJ("data/cumbre_model.json"), getJ("data/map/status.json"), getJ("data/status.json"), getJ("data/snowpack.json")])
+  .then(([s, l, ins, sat, cm, ms, st, sp]) => { S = s; L = l; INS = ins; SAT = sat; CM = cm; MAPST = ms; STATUS = st; SP = sp; mergeInsights(); M = runModel(); renderHeader(); renderFooter(); route(); liveVail().then(ch => { if (ch){ M = runModel(); renderHeader(); rerenderAll(); } }); })
   .catch(err => { $("#fatal").replaceChildren(el("div", { class: "err" }, "No pude cargar los datos (" + err.message + "). Vuelve a abrir la página en un momento.")); route(); });
 
 setInterval(() => { if (L) renderHeader(); }, 60000);

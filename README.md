@@ -5,7 +5,7 @@ Mi alternativa personal a OpenSnow, solo para Vail: **https://acarcurs.github.io
 - **Hoy**: probabilidad de que abran los Back Bowls para una fecha, nieve que falta, condiciones y noticias.
 - **Pronóstico Claude** (16 días): mezcla el pronóstico de Vail, el del NWS y 9 modelos (ECMWF, AIFS, GFS, HRRR, NBM, ICON, GEM, UKMO, JMA), corregidos con lo que de verdad nevó en temporadas pasadas; 103 escenarios de ensambles para el rango.
 - **Mapa 3D**: relieve real con las pistas y telesillas abiertas (OpenStreetMap + reporte de Vail) y la última foto de Sentinel-2.
-- **Cámaras** en vivo, **Satélite** con la nieve detectada en los Back Bowls y el frente, e **Historial** de temporadas.
+- **Cámaras** en vivo, **Satélite** con la nieve detectada en los Back Bowls y el frente, e **Historial** de temporadas, que abre con el agua en la nieve de esta temporada contra el mismo día de los últimos 30 inviernos (SNOTEL Vail Mountain, se recalcula cada semana).
 
 ## Cómo se actualiza
 

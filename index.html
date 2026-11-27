@@ -127,10 +127,20 @@
 
   <!-- ============ HISTORIAL ============ -->
   <section class="view" id="v-historial">
-    <h2 class="first">Agua en la nieve</h2>
-    <div class="chips" id="cmp-chips" role="group" aria-label="Comparar con temporada"></div>
-    <div class="chart" id="ch-swe"></div>
-    <div class="legend" id="lg-swe"></div>
+    <div class="card" id="sp-card">
+      <div class="sp-head"><div class="cardtitle">Agua en la nieve</div><div class="small muted" id="sp-date"></div></div>
+      <div class="tiny muted">SNOTEL Vail Mountain · 3,139 m</div>
+      <div class="sp-status" id="sp-status"></div>
+      <div class="kv k4" id="sp-kv"></div>
+      <div class="sp-ctl">
+        <div class="chips" id="sp-win" role="group" aria-label="Periodo de la gráfica"></div>
+        <label class="sp-cmp">vs <select id="sp-cmp" aria-label="Comparar con la temporada"></select></label>
+      </div>
+      <div class="chart" id="ch-sp"></div>
+      <div class="legend" id="lg-sp"></div>
+      <div class="sp-scale" id="sp-scale" aria-hidden="true"></div>
+      <p class="tiny muted" id="sp-note"></p>
+    </div>
     <h2>Cuándo abrieron los Back Bowls</h2>
     <div class="chart" id="ch-open"></div>
     <h2>Nevada acumulada</h2>
