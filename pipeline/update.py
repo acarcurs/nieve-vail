@@ -4,6 +4,7 @@
   python pipeline/update.py                 # normal run
   python pipeline/update.py --osm           # also refresh runs and lifts from OpenStreetMap
   python pipeline/update.py --sat-backfill 2025-10-01   # analyze older Sentinel-2 passes too
+  python pipeline/update.py --snowpack      # rebuild the SNOTEL snowpack history now
 
 Each source is independent: if one fails, the others still update and the old values are kept."""
 import argparse
@@ -30,6 +31,7 @@ MODEL = os.path.join(DATA, "cumbre_model.json")
 OSM = os.path.join(DATA, "map", "vail_osm.geojson")
 MAPST = os.path.join(DATA, "map", "status.json")
 SAT = os.path.join(DATA, "sat", "index.json")
+SNOWPACK = os.path.join(DATA, "snowpack.json")
 
 
 class Step:
@@ -57,6 +59,7 @@ def main():
     ap.add_argument("--osm", action="store_true")
     ap.add_argument("--no-sat", action="store_true")
     ap.add_argument("--sat-backfill")
+    ap.add_argument("--snowpack", action="store_true", help="rebuild the SNOTEL snowpack history now")
     a = ap.parse_args()
     prev = load_json(LIVE, {}) or {}
     old_status = load_json(STATUS, {}) or {}
@@ -85,6 +88,19 @@ def main():
         rows = snotel.fetch("-30,0")
         live["snotel"] = snotel.merge(prev.get("snotel"), rows)
         s.info = dict(last=rows[-1]["date"], swe=rows[-1]["swe"])
+
+    # snowpack history (whole period of record): weekly, or when a new winter starts
+    sp = load_json(SNOWPACK)
+    cur_sy = today.year if today.month >= 10 else today.year - 1
+    last_try = (old_status.get("steps", {}).get("snowpack") or {})
+    failed_recently = not last_try.get("ok", True) and (last_try.get("at") or "") > (dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=6)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    if a.snowpack or ((not sp or (sp.get("built") or "") < (today - dt.timedelta(days=7)).isoformat()
+                       or str(cur_sy) not in (sp.get("seasons") or {})) and not failed_recently):
+        with Step(status, "snowpack") as s:
+            import snowpack
+            sp = snowpack.build(today)
+            save_json(SNOWPACK, sp)
+            s.info = dict(seasons=len(sp["seasons"]), ref=sp["ref"], por_first=sp["por_first"])
 
     with Step(status, "nws") as s:
         n = nws.fetch()

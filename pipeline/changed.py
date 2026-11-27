@@ -66,6 +66,9 @@ def main():
             b = {k: v for k, v in b.items() if k not in vol}
         if a != b:
             reasons.append(path.split("/")[-2] if "sat" in path else "map")
+    a, b = head("data/snowpack.json"), cur("data/snowpack.json")
+    if b is not None and (a is None or {k: v for k, v in a.items() if k != "generated_at"} != {k: v for k, v in b.items() if k != "generated_at"}):
+        reasons.append("snowpack")
     out = subprocess.check_output(["git", "status", "--porcelain", "--", "data"]).decode()
     if any(l[3:].startswith("data/sat/") and l[3:].endswith((".jpg", ".png")) for l in out.splitlines()):
         reasons.append("satellite image")
