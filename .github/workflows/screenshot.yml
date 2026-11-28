@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ["tools/screenshot.py", ".github/workflows/screenshot.yml", "tools/capturas.txt"]
+    paths: ["tools/screenshot.py", "tools/webkit_check.py", ".github/workflows/screenshot.yml", "tools/capturas.txt"]
 
 permissions:
   contents: write
@@ -18,10 +18,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install playwright && python -m playwright install --with-deps chromium
+      - run: pip install playwright && python -m playwright install --with-deps chromium webkit
       - name: Esperar a que GitHub Pages publique
         run: sleep 60
       - run: python tools/screenshot.py shots
+      - run: python tools/webkit_check.py shots || true
       - name: Guardar en la rama capturas
         run: |
           cd shots
