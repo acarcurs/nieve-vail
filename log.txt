@@ -1,0 +1,20 @@
+warning: [.WebGL-0x2c740250c000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+warning: [.WebGL-0x2c740250c000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+warning: [.WebGL-0x2c740250c000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels
+warning: [.WebGL-0x2c740250c000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)
+failed: https://s3.amazonaws.com/elevation-tiles-prod/terrarium/10/210/388.png net::ERR_ABORTED
+failed: https://s3.amazonaws.com/elevation-tiles-prod/terrarium/13/1674/3113.png net::ERR_ABORTED
+failed: https://s3.amazonaws.com/elevation-tiles-prod/terrarium/13/1677/3111.png net::ERR_ABORTED
+failed: https://s3.amazonaws.com/elevation-tiles-prod/terrarium/11/421/779.png net::ERR_ABORTED
+failed: https://s3.amazonaws.com/elevation-tiles-prod/terrarium/11/420/779.png net::ERR_ABORTED
+failed: https://s3.amazonaws.com/elevation-tiles-prod/terrarium/13/1677/3112.png net::ERR_ABORTED
+failed: https://s3.amazonaws.com/elevation-tiles-prod/terrarium/13/1677/3113.png net::ERR_ABORTED
+failed: https://s3.amazonaws.com/elevation-tiles-prod/terrarium/12/839/1556.png net::ERR_ABORTED
+failed: https://s3.amazonaws.com/elevation-tiles-prod/terrarium/11/420/778.png net::ERR_ABORTED
+failed: https://s3.amazonaws.com/elevation-tiles-prod/terrarium/12/839/1557.png net::ERR_ABORTED
+failed: https://s3.amazonaws.com/elevation-tiles-prod/terrarium/11/421/779.png net::ERR_ABORTED
+failed: https://s3.amazonaws.com/elevation-tiles-prod/terrarium/13/1677/3114.png net::ERR_ABORTED
+failed: https://s3.amazonaws.com/elevation-tiles-prod/terrarium/11/420/779.png net::ERR_ABORTED
+failed: https://s3.amazonaws.com/elevation-tiles-prod/terrarium/13/1673/3112.png net::ERR_ABORTED
+warning: Allow attribute will take precedence over 'allowfullscreen'.
+warning: VIDEOJS: WARN: videojs.mergeOptions is deprecated and will be removed in 9.0; please use videojs.obj.merge instead.
